@@ -1,3 +1,5 @@
+# People-Flow-System-of-the-Sixth-Japanese-Navy-Fuel-Plant
+六燃人流系統
 # YoloTalk install tutorial
 
 
@@ -145,3 +147,4 @@ make: *** [obj/network_kernels.o] Error 1
 make clean
 make
 ```
+
