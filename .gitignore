@@ -1,4 +1,6 @@
-
+*.mp4
+*.mkv
+log.txt
 /multi-object-tracker
 /darknet
 

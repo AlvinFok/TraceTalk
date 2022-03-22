@@ -1,4 +1,5 @@
 from configparser import NoOptionError
+from email.errors import BoundaryError
 import cv2
 from matplotlib.pyplot import draw
 import numpy as np
@@ -15,6 +16,10 @@ import mediapipe as mp
 
 #people counting
 from shapely.geometry import Point, Polygon
+
+#FPS
+from imutils.video import FPS
+
 
 # motpy
 from motpy.testing_viz import draw_detection, draw_track
@@ -142,6 +147,9 @@ class YoloDevice:
         self.mp_face_detection = mp.solutions.face_detection
         self.mp_drawing = mp.solutions.drawing_utils
         
+        #fps calculate
+        self.FPS = FPS()
+        
         
         # remove the exist video file
         video_path_original = os.path.join(self.output_dir_video, get_current_date_string(), get_current_hour_string())
@@ -189,6 +197,7 @@ class YoloDevice:
             self.th.append(threading.Thread(target = self.prediction))
         
         for t in self.th:
+            self.FPS.start()
             t.start()
 
     
@@ -326,11 +335,16 @@ class YoloDevice:
             
             # Compute FPS
             if time.time() - last_time  >= 5:
+                fps = cnt / (time.time()-last_time)
                 self.print_msg("[Info] FPS:{fps} , {alias}".format(alias=self.alias, fps=cnt / (time.time()-last_time)))
                 self.print_msg("[Info] Predict FPS:{fps} , {alias}".format(alias=self.alias, fps=cnt / predict_time_sum))
                 last_time = time.time()
                 cnt = 0
                 predict_time_sum = 0
+            
+            self.FPS.update()
+            
+            
     #https://www.youtube.com/watch?v=brwgBf6VB0I
     def pose_estimation(self, image):
         for index, detection in enumerate(self.detect_target):#for each detection
@@ -376,8 +390,8 @@ class YoloDevice:
         # ("Exit", totalUp),
         ("Visitors", self.totalIn),
         # ("Status", status),
-        ("total lanmarks", self.detected_landmark),
-        ("good lanmarks", self.good_landmark)
+        # ("total lanmarks", self.detected_landmark),
+        # ("good lanmarks", self.good_landmark)
         ]
 
         info2 = [
@@ -408,7 +422,7 @@ class YoloDevice:
             center_x, center_y = det[4]
             
             if(self.lastCentroids.get(id, None) == None):#Don't have this id in last frame
-                currentCentorids[id] = (center_x, center_y)
+                self.lastCentroids[id] = (center_x, center_y) #update id's center
                 continue
             
             
@@ -423,7 +437,8 @@ class YoloDevice:
             # So count it
             if(not lastCentroid.within(squareAreaPolygon) and currentCentorid.within(squareAreaPolygon)):
                 self.totalIn += 1
-        self.lastCentroids = currentCentorids
+                
+            self.lastCentroids[id] = (center_x, center_y) #update id's center
     
     
     def socialDistance(self, image):
@@ -471,18 +486,30 @@ class YoloDevice:
         
         with self.mp_face_detection.FaceDetection(min_detection_confidence=0.3) as face_detection:
             for index, detection in enumerate(self.detect_target):#for each detection
+            
                 self.detect_target[index] = list(self.detect_target[index])
                 
                 left, top, right, bottom = darknet.bbox2points(detection[2])
                 # left, top, right, bottom = left-50, top-50, right+50, bottom+50
-                # Convert the BGR image to RGB and process it with MediaPipe Face Detection.
-                results = face_detection.process(detectImage[top:bottom, left:right])
+            
+                    
 
                 # print(results.detections[0].location_data.relative_bounding_box)
                 closestHeadIndex = None
                 minDistance = right + bottom#you can define any value here
                 imageWidth, imageHeight = right - left, bottom - top
                 head_x, head_y = left + imageWidth/2, top + imageHeight / 7# self define head ideal location
+                
+                boundaryError = left < 0 or right > self.W or top < 0 or bottom > self.H
+                if boundaryError:
+                    centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
+                    self.detect_target[index].append((centerX, centerY))
+                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
+                    continue
+                
+                # Convert the BGR image to RGB and process it with MediaPipe Face Detection.
+                results = face_detection.process(detectImage[top:bottom, left:right])
+                
                 
                 if not results.detections:#No face detected
                     centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
@@ -499,12 +526,19 @@ class YoloDevice:
                         minDistance = distance
                         closestHeadIndex = bboxIndex
                         
-                self.mp_drawing.draw_detection(drawImage[top:bottom, left:right], results.detections[closestHeadIndex])# draw the closest head
+                # self.mp_drawing.draw_detection(drawImage[top:bottom, left:right], results.detections[closestHeadIndex])# draw the closest head
+                
                 bbox = results.detections[closestHeadIndex].location_data.relative_bounding_box
                 xmin, ymin, width, height = bbox.xmin * imageWidth, bbox.ymin * imageHeight, bbox.width * imageWidth, bbox.height * imageHeight
                 centerX, centerY = (left + xmin + width/2), bottom
                 self.detect_target[index].append((centerX, centerY))
-                cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
+                try:
+                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
+                
+                except:
+                    print("Draw image shape",drawImage.shape)
+                    print(drawImage)
+                    #print(type(drawImage))
                 
         return drawImage
     
@@ -602,10 +636,12 @@ class YoloDevice:
         for t in self.th:
             t.do_run = False
 #             t.join()
-            
+        self.FPS.stop()
+        
         self.write_log("[Info] Stop the program.")
         self.cap.release()
-        
+        print(f"[Info] Avg FPS:{self.FPS.fps()}.")
+            
         print('[Info] Stop the program: Group:{group}, alias:{alias}, URL:{url}'\
               .format(group=self.group, alias=self.alias, url=self.video_url))      
         
