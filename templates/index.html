@@ -1,0 +1,297 @@
+
+<!doctype html>
+<html lang="zh-TW">
+
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<style>
+  body {
+    background-color: #f2f2f2;
+  }
+  
+  div.myContainer {
+    border-radius: 5px;
+    padding: 3%;
+    width: 100%;
+    
+  }
+
+  img{
+    border-radius: 5%;
+    border: #000000;
+    border-width: 3px;
+    border-style: solid;
+  } 
+
+  
+  #form-container {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    vertical-align: auto;
+    flex-wrap: wrap;
+  }
+  
+  .display-image {
+    flex-basis: 100%;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .form-check {
+    width: 25%;
+    padding-left: 7%;
+    padding-bottom: 8%;
+    padding-top: 1%;
+  }
+  
+  .form-check label{
+    font-size:150%;
+  }
+
+  .form-check input{
+    font-size:150%;
+    
+  }
+
+  
+   img/*let images overlay*/
+  {
+  position:absolute;
+  top:0px;
+  left: 0px;
+  }
+  
+
+  .video{
+    width: 100%;
+    height: 100%;
+  }
+  
+
+
+  </style>
+
+
+<head>
+
+  
+
+  <title>六燃廣場人流監控系統</title>
+
+  <style type="text/css">
+    .jumbotron{
+      background: url("static/images/sunset.jpg") no-repeat center 85%/ cover;
+      height: 200px;
+    }
+    .aa{font-size: 150%;}
+    .bb{font-size: 150%;}
+  </style>
+
+</head>
+<body>
+
+  <div class="jumbotron jumbotron-fluid text-white">
+    <div class="container">
+      <h1 class="display-4">六燃廣場．人流監控系統</h1>
+      <p class="lead mb-0" style="font-size:90%">物聯網與人工智慧技術應用於六燃保温基地</p>
+      <p class="lead mb-0" style="font-size:90%">IoT and AI Technology Applications for the Good Neighboring Project at the Sixth Fuel Base</p>
+    </div>
+
+  </div>
+
+  <!-- Option 1: Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
+
+
+  
+  <!-- <h2 style="text-align:center;padding-top: 2%;;">六燃廣場人流監控系統</h2> -->
+  <div class="myContainer" style="float: left;width: 60%;">
+    
+    <div class="video" >
+
+      
+      
+      <form method="post" action="/liveVideoControl" id="form-container" class="videoControl" >
+        <div class="title">
+          <h2>即時監控</h2>
+        </div>
+        <div class="video" style="position: relative; left: 0; top: 0;">
+          
+          <img src="{{ url_for('liveVideo') }}" id="live_frame" class="display-image">
+          
+
+          <!-- <img src="{{ url_for('static', filename='images/0.jpg') }}" id="live_frame" class="display-image"> -->
+          <img src="{{ url_for('liveBbox') }}" id="live_bbox" class="display-image">
+          <img src="{{ url_for('liveSocialDistance') }}" id="live_bbox" class="display-image">
+          
+
+          <img src="{{ url_for('static', filename='images/socialDistanceArea.png') }}" id="live_socialDistance" class="display-image">
+          <img src="{{ url_for('static', filename='images/squareArea.png') }}" id="live_square" class="display-image">
+
+          <canvas class="display-image"></canvas>
+        </div>
+        <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheckDefault" name="live_bbox" checked>
+          <label class="form-check-label" for="flexSwitchCheckDefault">人的位置</label>
+        </div>
+        <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" name="live_distance" checked >
+          <label class="form-check-label" for="flexSwitchCheckChecked">社交距離</label>
+        </div>
+        <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheck" name="live_squareArea" checked >
+          <label class="form-check-label" for="flexSwitchCheckDisabled" onclick="">廣場範圍</label>
+        </div>
+        <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" name="live_socialDistanceArea" checked >
+          <label class="form-check-label" for="flexSwitchCheckCheckedDisabled">社交範圍</label>
+        </div>
+      </form>
+
+
+
+      <form method="post" action="/demoVideoControl" id="form-container" class="videoControl">
+        <div class="title">
+          <h2>Demo影片</h2>
+        </div>
+        
+        <div class="video" style="position: relative; left: 0; top: 0;">
+          
+          
+          
+
+          <img src="{{ url_for('static', filename='images/socialDistanceArea.png') }}" id="demo_socialDistance" class="display-image">
+          <img src="{{ url_for('static', filename='images/squareArea.png') }}" id="demo_square" class="display-image">
+
+          <canvas class="display-image"></canvas>
+        </div>
+        
+        <!-- <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheckDefault" name="demo_bbox" checked>
+          <label class="form-check-label" for="flexSwitchCheckDefault">人的位置</label>
+        </div>
+        <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" name="demo_distance" checked >
+          <label class="form-check-label" for="flexSwitchCheckChecked">社交距離</label>
+        </div>
+        <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheck" name="demo_squareArea" checked >
+          <label class="form-check-label" for="flexSwitchCheckDisabled">廣場範圍</label>
+        </div>
+        <div class="form-check form-switch" >
+          <input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" name="demo_socialDistanceArea" checked >
+          <label class="form-check-label" for="flexSwitchCheckCheckedDisabled">社交範圍</label>
+        </div>
+      </form>
+    </div> -->
+    
+    
+  </div>
+  <div class="text" style="width:40%;align-content: center;float:right;padding-top: 10%;padding-right: 5%;">
+    <h3>人流監測系統 (People Counting System)</h3>
+
+    <h4>
+      <p>
+        此影像呈現保溫基地的人流監測狀況。
+        圖中以紅線圍起來的空間表示廣場的範圍，
+        觀眾只要接近廣場鐵門，本系統就會辨識並開始追蹤。
+        當觀眾越過紅線進入廣場時，本系統的人流計數器就會加一。
+        當人流接近上限，系統就會透過IoTtalk即時傳出訊息到管理人員的手機，以便能立即對現場進行人流管制。
+      </p>
+    </h4>
+    <br><br><br><br>
+    <p>
+      <h3>計畫說明</h3>
+    </p>
+    <p>
+      <h4>
+        陽明交大IoTtalk研究團隊從2019年起，將物聯網與人工智慧技術應用在六燃保溫計畫中。
+        首先利用生物觀察技術結合IoTtalk，讓大眾可以透過電腦或智慧型手機即時地觀察到六燃大煙囪裡的霜毛蝙蝠之生態。
+        2022年也利用人工智慧技術結合IoTtalk設計了人流監測系統與社區雞舍的即時監控與雞隻行為辨識系統，加強防疫與保溫睦鄰工作。
+        藉由這個網頁，IoTtalk Team希望可以將這些物聯網科技應用在保溫睦鄰的經驗分享給各位。
+      </h4>
+    </p>
+
+    <br><br><br><br><br><br><br><br><br><br>
+    <p>
+      <h3>保溫廣場即時人流監控系統</h3>
+    </p>
+    <p>
+      <h4>
+        由於Covid-19疫情，公共空間的人流監測成為倍受重視的研究議題。陽明交大保溫團隊的 IoTtalk Team 結合了物聯網與人工智慧技術，對六燃基地廣場進行遠距人流監測。
+        物聯網的部分是用IoTtalk，但在人工智慧部份則是用了YOLO (You Only Look Once) 的第四代YOLOv4。
+        YOLO 是一種類神經網路 (artificial neural network)，以即時計算辨識出物件的位置與種類。
+      </h4>
+    </p>
+    <p>
+      <h4>
+        為了保護觀眾的隱私權，本系統對物件（人）進行追蹤時，只會利用少量且與物體移動相關的特徵數值進行物體移動的追蹤，並不會進行人臉與身分相關的辨識。
+        另外，本系統也能同步對人群密度進行監測，當群眾之間的距離低於防疫標準過久時（該時間之定義可隨疫情警戒等級而調整），本系統也會立即發出警告訊息。
+      </h4>
+    </p>
+  </div>
+  
+</body>
+</html>
+
+
+<script>
+
+
+  $(".videoControl input").click(function(){
+    var blankImage = "{{url_for('static', filename='images/blank.png')}}"
+    var squareImage = "{{url_for('static', filename='images/squareArea.png')}}"
+    var socialDistanceImage = "{{url_for('static', filename='images/socialDistanceArea.png')}}"
+
+
+    //live
+    var liveBboxImage = "{{url_for('liveBbox')}}"
+    var liveDistanceImage = "{{url_for('liveSocialDistance')}}"
+
+    
+    switch($(this).attr('name')){
+      case "live_bbox":
+      if($(this).prop('checked')){//get button state(on/off)
+          $('#live_bbox').attr('src', liveBboxImage);
+        }
+        else{
+          $('#live_bbox').attr('src', blankImage);
+        }
+        break;
+
+      case "live_distance":
+      if($(this).prop('checked')){//get button state(on/off)
+          $('#live_distance').attr('src', liveDistanceImage);
+        }
+        else{
+          $('#live_distance').attr('src', blankImage);
+        }
+        break;
+
+      case "live_squareArea":
+        if($(this).prop('checked')){//get button state(on/off)
+          $('#live_square').attr('src', squareImage);
+        }
+        else{
+          $('#live_square').attr('src', blankImage);
+        }
+        
+        break;
+      case "live_socialDistanceArea":
+        if($(this).prop('checked')){//get button state(on/off)
+          $('#live_socialDistance').attr('src', socialDistanceImage);
+        }
+        else{
+          $('#live_socialDistance').attr('src', blankImage);
+        }
+        break;
+      }
+    })
+  
+  
+</script>

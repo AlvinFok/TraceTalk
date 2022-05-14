@@ -1,10 +1,9 @@
+# coding:utf-8
+
 from libs.YOLO import YoloDevice
 from darknet import darknet
 import libs.DAN as DAN
 import LineNotify
-
-import numpy as np
-from shapely.geometry import Point, Polygon
 
 if __name__ == '__main__': 
     
@@ -36,27 +35,30 @@ if __name__ == '__main__':
     #廣場: http://125.228.228.122:8080/video.mjpg
     yolo1 = YoloDevice(
         config_file = './cfg_person/yolov4-tiny-person.cfg',
+        weights_file = './weights/yolov4-tiny-person_70000.weights',
+        # config_file = './cfg_person/yolov4.cfg',
+        # weights_file = './weights/yolov4.weights',
+        
         data_file = './cfg_person/person.data',
-        weights_file = './weights/yolov4-tiny-person_best.weights',
-        thresh = 0.5,
+        thresh = 0.3,
         output_dir = '',
-        video_url = './1.mp4',
+        video_url = './0325.mp4',
         is_threading = False,
-        vertex = [[0, 762],[537, 244],[1152, 286],[1920, 599],[1920, 1080],[0, 1080]],
+        vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
         draw_polygon=False,
-        alias="1",
+        alias="0325",
         display_message = True,
         obj_trace = True,        
         save_img = False,
         save_video = True,        
         target_classes=["person"],
         auto_restart = True,
-        
+        skip_frame=None,
         count_people=True,
         draw_peopleCounting=True,
         draw_pose=True,
         social_distance=True,
-        draw_socialDistance=True,
+        draw_socialDistanceInfo=True,
         
      )    
 

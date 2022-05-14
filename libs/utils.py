@@ -17,6 +17,12 @@ def detect_filter(detections, target_classes, vertex):
             if label not in target_classes:
                 continue            
         
+        #if  the bbox is too small or not expected size scale
+        x, y, w, h, = bbox
+        scale = h / w 
+        # if(w < 60 or h < 60):
+        #     continue
+        
         # filter the bbox base on the vertex
         if vertex == None:            
             results.append((label, confidence, bbox, None))

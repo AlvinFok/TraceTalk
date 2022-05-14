@@ -1,5 +1,16 @@
+yolov4.weights
+yolov4-tiny.conv.29
+#video files
 *.mp4
 *.mkv
+*.mov
+video/
+videoTest/
+usedVideos/
+videoClips/
+#yolo training data
+labeledData/
+#lib
 log.txt
 /multi-object-tracker
 /darknet
