@@ -6,3 +6,10 @@ scipy==1.4.1
 lineTool
 motpy
 ipyfilechooser
+shapely
+flask
+tqdm
+mediapipe
+dlib
+imutils
+requests
