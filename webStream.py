@@ -24,8 +24,6 @@ yolo = YoloDevice(
         draw_peopleCounting=True,
         draw_pose=True,
         social_distance=True,
-        draw_socialDistanceArea=True,
-        draw_square=True,
         draw_socialDistanceInfo=True,
         
         )

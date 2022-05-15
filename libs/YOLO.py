@@ -237,9 +237,7 @@ class YoloDevice:
         
         
         self.ret, self.frame = self.cap.read() 
-        # Get the latest pictures
-        allcount = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES,allcount)
+        
             
         if not self.cap.isOpened() or not self.ret: # if camera connecting is wrong
             
@@ -261,6 +259,9 @@ class YoloDevice:
         
         while getattr(t, "do_run", True):
             self.ret, self.frame = self.cap.read() 
+            # Get the latest pictures
+            allcount = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES,allcount)
             
             if not self.cap.isOpened() or not self.ret: # if camera connecting is wrong 
                 print("[Error] Reconnecting:{group}:{alias}:{url} ".format(group=self.group, alias=self.alias, url=self.video_url))
@@ -395,7 +396,7 @@ class YoloDevice:
             
             if self.obj_trace: # draw the image with object tracking
 #                 image = self.object_tracker(image)             
-                self.drawImage = self.object_tracker(self.drawImage)    
+                self.drawImage = self.object_tracker(frame_rgb)    
             elif self.draw_bbox:
                 self.drawImage = draw_boxes(detections, self.drawImage, self.class_colors, self.target_classes, self.vertex)
                 
