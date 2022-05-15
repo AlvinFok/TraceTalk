@@ -2,6 +2,7 @@
 from glob import glob
 from itertools import filterfalse
 from charset_normalizer import detect
+from cv2 import VideoCapture
 from flask import Flask, render_template, Response, request
 import cv2
 import random
@@ -12,7 +13,8 @@ import libs.DAN as DAN
 import LineNotify
 
 app = Flask(__name__)
-demoVideo = cv2.VideoCapture("./demo.mp4")
+#demo video
+demo = cv2.VideoCapture("./demo.mp4")
 
 
 ServerURL = 'https://edgecore.iottalk.tw'    
@@ -29,38 +31,7 @@ DAN.profile['d_name']= 'YOLO_Alvin'
 
 # results:[(class, confidence, (center_x, center_y, width, height), id, [pose_centerX, pose_centerY]), (...)]
 
-'''
-yoloLive = YoloDevice(
-        config_file = './cfg_person/yolov4-tiny-person.cfg',
-        weights_file = './weights/yolov4-tiny-person_70000.weights',
-        # config_file = './cfg_person/yolov4.cfg',
-        # weights_file = './weights/yolov4.weights',
-        data_file = './cfg_person/person.data',
-        thresh = 0.3,
-        output_dir = '',
-        video_url = 'http://125.228.228.122:8080/video.mjpg',#廣場: http://125.228.228.122:8080/video.mjpg
-        is_threading = False,
-        vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
-        draw_polygon=False,
-        alias="live",
-        display_message = False,
-        obj_trace = True,        
-        save_img = False,
-        save_video = False,        
-        target_classes=["person"],
-        auto_restart = True,
-        skip_frame=2,
-        count_people=True,
-        draw_peopleCounting=True,
-        draw_pose=True,
-        social_distance=True,
-        draw_socialDistanceArea=True,
-        draw_square=True,
-        draw_socialDistanceInfo=True,
-        
-        )
 
-'''
 def on_data(image, group, alias, results): 
     
     '''
@@ -97,33 +68,31 @@ def yoloImages():
         frame = request.files['frame'].read()
         bboxImage = request.files['bboxImage'].read()
         distanceImage = request.files['distanceImage'].read()
-        
-        
-        # frame = np.fromstring(request.files['frame'].read(), np.uint8)
-        # frame = cv2.imdecode(frame, cv2.IMREAD_COLOR) # cv2.IMREAD_COLOR in OpenCV 3.1
-        
-        # bboxImage = np.fromstring(request.files['bboxImage'].read(), np.uint8)
-        # bboxImage = cv2.imdecode(bboxImage, cv2.IMREAD_COLOR) # cv2.IMREAD_COLOR in OpenCV 3.1
-        
-        # distanceImage = np.fromstring(request.files['distanceImage'].read(), np.uint8)
-        # distanceImage = cv2.imdecode(distanceImage, cv2.IMREAD_COLOR) # cv2.IMREAD_COLOR in OpenCV 3.1
+
         return {'status':200}
     
-'''
+
 #get demo frame
         
 @app.route('/demoVideo')
 def demoVideo():
     def gen_demoFrames(): 
+        global demo
         while True: 
-            global frame
-            
+            ret, frame = demo.read()
+            if not ret:#demo video ended
+                demo = VideoCapture("./demo.mp4")#read video again
+                ret, frame = demo.read()
+                
+            frame = cv2.resize(frame, (1280, 720))
+            frame = cv2.imencode('.jpg', frame)[1]
+            frame = frame.tobytes()
             yield  (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
     return Response(gen_demoFrames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-
+'''
 #get demo bbox image
 @app.route('/demoBbox')
 def demoBbox():

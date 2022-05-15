@@ -237,6 +237,9 @@ class YoloDevice:
         
         
         self.ret, self.frame = self.cap.read() 
+        # Get the latest pictures
+        allcount = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES,allcount)
             
         if not self.cap.isOpened() or not self.ret: # if camera connecting is wrong
             

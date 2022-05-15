@@ -29,7 +29,7 @@
   
   #form-container {
     height: 100%;
-    width: 100%;
+    width: 80%;
     display: flex;
     vertical-align: auto;
     flex-wrap: wrap;
@@ -162,9 +162,7 @@
         
         <div class="video" style="position: relative; left: 0; top: 0;">
           
-          
-          
-
+          <img src="{{ url_for('demoVideo') }}" id="demo_socialDistance" class="display-image">
           <img src="{{ url_for('static', filename='images/socialDistanceArea.png') }}" id="demo_socialDistance" class="display-image">
           <img src="{{ url_for('static', filename='images/squareArea.png') }}" id="demo_square" class="display-image">
 
@@ -186,9 +184,9 @@
         <div class="form-check form-switch" >
           <input class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" name="demo_socialDistanceArea" checked >
           <label class="form-check-label" for="flexSwitchCheckCheckedDisabled">社交範圍</label>
-        </div>
+        </div> -->
       </form>
-    </div> -->
+    </div>
     
     
   </div>
