@@ -35,7 +35,7 @@ if __name__ == '__main__':
     #廣場: http://125.228.228.122:8080/video.mjpg
     yolo1 = YoloDevice(
         config_file = './cfg_person/yolov4-tiny-person.cfg',
-        weights_file = './weights/yolov4-tiny-person_70000.weights',
+        weights_file = './weights/yolov4-tiny-person_230000.weights',
         # config_file = './cfg_person/yolov4.cfg',
         # weights_file = './weights/yolov4.weights',
         

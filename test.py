@@ -39,7 +39,7 @@ from libs.YOLO import YoloDevice
 #yolov4 tiny
 yolo1 = YoloDevice(
         config_file = './cfg_person/yolov4-tiny-person.cfg',
-        weights_file = './weights/yolov4-tiny-person_70000.weights',
+        weights_file = './weights/yolov4-tiny-person_230000.weights',
         # config_file = './cfg_person/yolov4.cfg',
         # weights_file = './weights/yolov4.weights',
         
@@ -51,13 +51,13 @@ yolo1 = YoloDevice(
         vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
         draw_polygon=False,
         alias="Test",
-        display_message = True,
+        display_message = False,
         obj_trace = True,        
         save_img = False,
         save_video = True,        
         target_classes=["person"],
         auto_restart = True,
-        skip_frame=None,
+        skip_frame=2,
         count_people=True,
         draw_peopleCounting=True,
         draw_pose=True,
@@ -69,4 +69,4 @@ yolo1 = YoloDevice(
     )    
 
     
-yolo1.test("./videoClips/")
+yolo1.test("usedVideos")

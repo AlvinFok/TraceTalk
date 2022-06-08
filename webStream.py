@@ -4,16 +4,18 @@ import cv2
 
 yolo = YoloDevice(
         config_file = './cfg_person/yolov4-tiny-person.cfg',
-        weights_file = './weights/yolov4-tiny-person_70000.weights',
+        weights_file = './weights/yolov4-tiny-person_230000.weights',
         data_file = './cfg_person/person.data',
         thresh = 0.3,
         output_dir = '',
         video_url = 'http://125.228.228.122:8080/video.mjpg',#廣場: http://125.228.228.122:8080/video.mjpg
-        is_threading = False,
+        # video_url = './0325.mp4',
+        
+        is_threading = True,
         vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
         draw_polygon=False,
         alias="live",
-        display_message = False,
+        display_message = True,
         obj_trace = True,        
         save_img = False,
         save_video = False,        
@@ -29,23 +31,27 @@ yolo = YoloDevice(
         )
 
 def webStream(frame, bboxImage, distanceImage):
-    url = 'http://panettone.iottalk.tw:11030/yoloImages'
+    # url = 'http://panettone.iottalk.tw:11030/yoloImages'
+    url = 'http://bigchimney.iaa.nycu.edu.tw:10000/yoloImages'
+    try:
+        #resize image for faster post requests
+        frame = cv2.resize(frame, (1280, 720))
+        bboxImage = cv2.resize(bboxImage, (1280, 720))
+        distanceImage = cv2.resize(distanceImage, (1280, 720))
+                        
+        
+        frame = cv2.imencode(".jpg", frame)[1]
+        bboxImage = cv2.imencode(".png", bboxImage)[1]
+        distanceImage = cv2.imencode(".png", distanceImage)[1]
+        
+        files = {'frame': ('frame.jpg', frame.tostring(), 'image/jpeg', {'Expires': '0'}),
+                'bboxImage': ('bboxImage.png', bboxImage.tostring(), 'image/png', {'Expires': '0'}),
+                'distanceImage': ('distanceImage.png', distanceImage.tostring(), 'image/png', {'Expires': '0'})}
     
-    #resize image for faster post requests
-    frame = cv2.resize(frame, (1280, 720))
-    bboxImage = cv2.resize(bboxImage, (1280, 720))
-    distanceImage = cv2.resize(distanceImage, (1280, 720))
-                       
     
-    frame = cv2.imencode(".jpg", frame)[1]
-    bboxImage = cv2.imencode(".png", bboxImage)[1]
-    distanceImage = cv2.imencode(".png", distanceImage)[1]
-    
-    files = {'frame': ('frame.jpg', frame.tostring(), 'image/jpeg', {'Expires': '0'}),
-             'bboxImage': ('bboxImage.png', bboxImage.tostring(), 'image/png', {'Expires': '0'}),
-             'distanceImage': ('distanceImage.png', distanceImage.tostring(), 'image/png', {'Expires': '0'})}
-    
-    requests.post(url, files=files)
+        requests.post(url, files=files)
+    except:
+        pass
     
     
 yolo.start()

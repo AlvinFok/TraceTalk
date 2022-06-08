@@ -1,20 +1,19 @@
 # -*- coding: utf-8 -*-
-from glob import glob
-from itertools import filterfalse
+from concurrent.futures import process
 from charset_normalizer import detect
 from cv2 import VideoCapture
-from flask import Flask, render_template, Response, request
+from flask import Flask, render_template, Response, request, redirect, url_for
 import cv2
 import random
 import numpy as np
+from time import sleep
 
-from libs.YOLO import YoloDevice
 import libs.DAN as DAN
-import LineNotify
+
 
 app = Flask(__name__)
 #demo video
-demo = cv2.VideoCapture("./demo.mp4")
+# demo = cv2.VideoCapture("./demo.mp4")
 
 
 ServerURL = 'https://edgecore.iottalk.tw'    
@@ -73,7 +72,7 @@ def yoloImages():
     
 
 #get demo frame
-        
+'''
 @app.route('/demoVideo')
 def demoVideo():
     def gen_demoFrames(): 
@@ -92,6 +91,7 @@ def demoVideo():
     return Response(gen_demoFrames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
+'''
 '''
 #get demo bbox image
 @app.route('/demoBbox')
@@ -126,6 +126,7 @@ def demoSocialDistance():
 def liveVideo():
     def gen_liveFrames(): 
         while True: 
+            
             global frame
             yield  (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
@@ -161,30 +162,14 @@ def liveSocialDistance():
     
 
 
-@app.route("/videoControl", methods=['POST'])
-def liveVideoControl():
-    if request.method == 'POST':
-        name = request.form.get("name")
-        
-        if name == 'live_bbox':
-            yoloLive.draw_bbox = not yoloLive.draw_bbox
-        elif name == 'demo_bbox':
-            yoloDemo.draw_bbox = not yoloDemo.draw_bbox
-            
-        elif name == 'live_distance':
-            yoloLive.draw_socialDistanceInfo = not yoloLive.draw_socialDistanceInfo
-        elif name == 'demo_distance':
-            yoloDemo.draw_socialDistanceInfo = not yoloDemo.draw_socialDistanceInfo
-            
-            
-    return "success"
-
 
 
 @app.route("/", methods=['GET', 'POST'])
 def index():
     
     return render_template('index.html')
+
+
 
 
     

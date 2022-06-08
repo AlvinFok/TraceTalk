@@ -13,9 +13,9 @@ def detect_filter(detections, target_classes, vertex):
         left, top, right, bottom = bbox2points(bbox)
         
         # filter the target class
-        if target_classes != None:
-            if label not in target_classes:
-                continue            
+        # if target_classes != None:
+        #     if label not in target_classes:
+        #         continue            
         
         #if  the bbox is too small or not expected size scale
         x, y, w, h, = bbox

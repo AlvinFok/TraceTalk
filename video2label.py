@@ -22,7 +22,7 @@ yolo1 = YoloDevice(
          save_video = True,        
          target_classes=["person"],
          auto_restart = True,
-         skip_frame=None,
+         skip_frame=3,
          count_people=True,
          draw_peopleCounting=True,
          draw_pose=True,
@@ -34,5 +34,5 @@ yolo1 = YoloDevice(
      )    
 
     
-# yolo1.video2Label("./usedVideos/", "./MoreLabeledData/")
+# yolo1.video2Label("./usedVideos/", "./labeledData/")
 yolo1.generateTrainTxt("./labeledData/")

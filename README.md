@@ -10,6 +10,7 @@ git clone https://github.com/jim93073/YoloTalk.git
 cd YoloTalk
 git clone https://github.com/adipandas/multi-object-tracker.git
 git clone https://github.com/AlexeyAB/darknet.git
+git clone https://github.com/mhnasseri/sort_oh
 ```
 
 ## Step 2. 編譯 darknet
