@@ -59,7 +59,7 @@ if __name__ == '__main__':
         draw_pose=True,
         social_distance=True,
         draw_socialDistanceInfo=True,
-        
+        gpu=1,
      )    
 
     yolo1.set_listener(on_data)

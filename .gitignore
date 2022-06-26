@@ -14,7 +14,8 @@ labeledData/
 log.txt
 /multi-object-tracker
 /darknet
-
+/deepsort
+/sort_oh
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

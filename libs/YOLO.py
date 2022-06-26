@@ -1,5 +1,3 @@
-from configparser import NoOptionError
-from email.errors import BoundaryError
 import cv2
 from matplotlib.pyplot import draw
 import numpy as np
@@ -28,6 +26,18 @@ from sort_oh.libs import visualization
 from sort_oh.libs import tracker as SortOHTracker
 from sort_oh.libs import kalman_tracker
 
+# deep sort imports
+from deepsort.deep_sort import preprocessing, nn_matching
+from deepsort.deep_sort.detection import Detection as DeepSortDetection
+from deepsort.deep_sort.tracker import Tracker as DeepSortTracker
+from deepsort.tools import generate_detections as gdet
+
+import tensorflow as tf
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
 
 # motpy
 from motpy.testing_viz import draw_detection, draw_track
@@ -52,7 +62,11 @@ class YoloDevice:
                  names_file="", thresh=0.5, vertex=None, target_classes=None, draw_bbox=True, draw_polygon=True, draw_square=True,
                  draw_socialDistanceArea=False, draw_socialDistanceInfo=False,  social_distance=False, draw_pose=False, count_people=False, draw_peopleCounting=False,
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
-                 schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False):
+                 schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0):
+        
+        tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
+        
+        
         self.video_url = video_url
         self.ourput_dir = output_dir
         self.run = run
@@ -85,6 +99,7 @@ class YoloDevice:
         
         
         #load model
+        darknet.set_gpu(gpu)#set the gpu you want to use
         self.network, self.class_names, self.class_colors = darknet.load_network(
             config_file = self.config_file,
             data_file = self.data_file,
@@ -119,16 +134,33 @@ class YoloDevice:
 #                                     'multi_match_min_iou': 0.93}
                     )     
         # self.tracker = CentroidTracker(max_lost=7, tracker_output_format='mot_challenge', )
-        # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)
+        self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)
 #         self.tracker = SORT(max_lost=3, tracker_output_format='mot_challenge', iou_threshold=0.1)
         # self.tracker = IOUTracker(max_lost=120, iou_threshold=0.4, min_detection_confidence=0.4, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
         
         #SortOH Tracker
-        self.tracker = SortOHTracker.Sort_OH()  # create instance of the SORT with occlusion handling tracker
+        self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
         self.conf_trgt = 0.35
         self.conf_objt = 0.75
         self.tracker.conf_trgt = self.conf_trgt
         self.tracker.conf_objt = self.conf_objt
+        
+        
+        #deepSort tracker
+        # Definition of the parameters
+        # max_cosine_distance = 0.8
+        # nn_budget = None
+        # nms_max_overlap = 1.0
+        
+        # # initialize deep sort
+        # model_filename = 'deepsort/model_data/mars-small128.pb'
+        # self.encoder = gdet.create_box_encoder(model_filename, batch_size=1)
+        # # calculate cosine distance metric
+        # metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
+        # # initialize tracker
+        # self.tracker = DeepSortTracker(metric, max_age=30)
+        
+        
         
         self.bbox_colors = {}
         
@@ -153,10 +185,12 @@ class YoloDevice:
         #people counting
         self.totalIn = 0#count how many people get in the area
         self.draw_square = draw_square
-        self.squareArea_draw = np.array([ [0, 1080],[0, 762],[547, 247],[1004, 260],[1160, 381],[1135, 588],[1066, 587],[1417, 990],[1533, 972],[1612, 645],[1920, 800],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
-        self.squareArea_cal = np.array([ [0, 1090],[0, 762],[547, 247],[1004, 260],[1160, 381],[1135, 588],[1066, 587],[1417, 990],[1533, 972],[1612, 645],[1920, 800],[1920, 1090] ], np.int32)#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        
+        self.squareArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
+        self.squareArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+        self.suspiciousArea = np.array([[1070, 542],[850, 548],[981, 927],[1343, 921]])#This area use to handle occlusion when people grt in square
         self.lastCentroids = dict()
+        self.IDsInLastSuspiciousArea = set()
+        self.IDTracker = dict()
         
         #social distance
         self.socialDistanceArea = np.array([ [378, 1080],[585, 345],[939, 339],[1590, 1080] ], np.float32)
@@ -322,7 +356,7 @@ class YoloDevice:
                 continue
                 
             frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB) # original image
-            self.drawImage = self.frame
+            self.drawImage = self.frame.copy()
             
             if self.skip_frame != None and self.frame_id%self.skip_frame != 0:#skip frame
                 self.frame_id += 1
@@ -350,11 +384,10 @@ class YoloDevice:
               
 
             
-            if self.obj_trace: # draw the image with object tracking           
-                # self.drawImage = self.object_tracker(self.drawImage)  
-                self.drawImage = self.object_tracker_sort_oh(self.drawImage)  
-                
-                  
+            if self.obj_trace and len(self.detect_target) > 0: # draw the image with object tracking           
+                # self.drawImage = self.object_tracker(self.drawImage)
+                self.drawImage = self.object_tracker_sort_oh(self.drawImage)
+                # self.drawImage = self.object_tracker_deep_sort(frame_rgb)
                 # self.drawImage = self.object_tracker_motpy(frame_rgb)
             elif self.draw_bbox:
                 self.drawImage = draw_boxes(detections, self.drawImage, self.class_colors, self.target_classes, self.vertex)
@@ -375,11 +408,14 @@ class YoloDevice:
                 socialDistanceArea_int = np.array(self.socialDistanceArea, np.int32)
                 cv2.polylines(self.drawImage, pts=[socialDistanceArea_int], isClosed=True, color=(0,255,255), thickness=3)#draw square area
             
+            cv2.polylines(self.drawImage, pts=[self.suspiciousArea], isClosed=True, color=(0,255,0), thickness=3)#draw square area
+            
 
             # if self.draw_pose and len(self.detect_target) > 0:
             #     image = self.pose_estimation(image)
                 
             self.drawImage = self.face_detection(frame_rgb, self.drawImage)
+            
             if self.count_people and len(self.detect_target) > 0:
                 self.people_counting()
                 
@@ -495,26 +531,36 @@ class YoloDevice:
     
     def people_counting(self):
         
+        self.__suspiciousAreaHandling()
+        
         for det in self.detect_target:
             # print(det)
             count = False
             id = det[3]
             if len(det) < 5 or None in det[4]:#center not None
                 continue
-            
-            
-            
+
             center_x, center_y = det[4]
+            w, h = det[2][2:]
             
-            if(self.lastCentroids.get(id, None) == None):#Don't have this id in last frame
+            if self.lastCentroids.get(id, None) is None:#Don't have this id in last frame
                 self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
+                                          "wh":(w, h),
                                           "counted":False}#set id not counted
+                
+                
+                # currentCentroid = Point((center_x, center_y))
+                # suspiciousAreaPolygon = Polygon(self.suspiciousArea)
+                
+                # if currentCentroid.within(suspiciousAreaPolygon):#this id is new and spawn in the suspicious area. That I can say it has occlusion
+                #     self.totalIn += 1
+                #     self.lastCentroids[id]["counted"] = True
                 continue
             
             if self.lastCentroids[id]["counted"]:#already counted
                 continue
             
-            if center_x <= 0 or center_x >= self.W or center_y <= 0 or center_y >= self.H:
+            if center_x <= 0 or center_x >= self.W or center_y <= 0 or center_y >= self.H:#out of boundary
                 continue
             
             lastCentroid = self.lastCentroids[id]["center"]
@@ -526,18 +572,115 @@ class YoloDevice:
             squareAreaPolygon = Polygon(self.squareArea_cal)
             
             
+            inSquareWhenAppear = lastCentroid.within(squareAreaPolygon) and currentCentroid.within(squareAreaPolygon)
+            if inSquareWhenAppear:#The last position and current position are in the square but not counted. That means people show up in the square at the beginning.
+                #mark the people counted but not plus 1
+                count = True
+            
             # if the last centroid not in square and current centroid in square 
             # that mean the person get into the square from outside.
             # So count it
             isGetIn = not lastCentroid.within(squareAreaPolygon) and currentCentroid.within(squareAreaPolygon)
             
-            if isGetIn:
+            if isGetIn:#get in and not counted
+                print("Normal add:", id)
+                
                 self.totalIn += 1
                 count = True
                 
             self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
-                                          "counted":count}#set id's count
+                                      "wh":(w, h),
+                                      "counted":count}#set id's count
+             
     
+    def __suspiciousAreaHandling(self):
+        IDsInCurrentSuspiciousArea = set()
+        detections = dict()
+        for det in self.detect_target:
+            x, y = det[4]#use this xy not center of bbox
+            id = det[3]
+            w, h = det[2][2:]
+            currentCentroid = Point((x, y))
+            suspiciousAreaPolygon = Polygon(self.suspiciousArea)
+            detections[id] = det#save as dict for later
+            #this id is new and spawn in the suspicious area. That I can say it has occlusion
+            if currentCentroid.within(suspiciousAreaPolygon):
+                IDsInCurrentSuspiciousArea.add(id)
+                if self.lastCentroids.get(id, None) is None:
+                    print("Area add:", id)
+                    self.totalIn += 1
+                    center_x, center_y = det[4]
+                    self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
+                                              "wh":(w,h),
+                                          "counted":True}#set id not counted
+        
+        '''
+        if len(self.IDsInLastSuspiciousArea) == len(IDsInCurrentSuspiciousArea) and self.IDsInLastSuspiciousArea.symmetric_difference(IDsInCurrentSuspiciousArea):#the amount of people is same but ids have difference, that mean some one may change id
+            disappearID = self.IDsInLastSuspiciousArea.difference(IDsInCurrentSuspiciousArea)
+            newID = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
+            
+            for new in newID:#find the new id belong to which old id
+                new_detection = detections[new]
+                new_w, new_h = new_detection[2][2:]
+                new_x, new_y = new_detection[4]
+                for old in disappearID:
+                    old_detection = self.lastCentroids[old]
+                    old_w, old_h = old_detection["wh"]
+                    old_x, old_y = old_detection["center"]
+                    
+                    distance = ( (old_x-new_x)**2 + (old_y-new_y)**2 )**0.5
+                    if distance > 50 or new == old:#two ids are too far from each other or is same id
+                        continue
+            
+                    w_ratio, h_ratio = new_w/old_w, new_h/old_h
+                    if w_ratio > 1:
+                        w_ratio = 1 / w_ratio
+                    if h_ratio > 1:
+                        h_ratio = 1 / h_ratio
+                    
+                    if w_ratio > 0.9 and h_ratio > 0.9:#the ratio of two ids is similar, say they are same people
+                        print("ID change:", id)
+                        self.totalIn -= 1#IDs change in suspicious area will let amount of visiter +1 so -1 because we think new id and old is same people
+                        self.lastCentroids[id]["counted"] = True 
+                        '''
+        
+       # suddenly appear id
+        TRACK_FRAMES = 5  # const for amount of frames to track
+        COUNTED_THRESHOLD = 2
+        mode = "counted"  # ["counted", "continuous"]
+        for old_ID in list(self.IDTracker.keys()):
+            if old_ID in IDsInCurrentSuspiciousArea:
+                # add counter and keep cont status if already not continuous
+                old_ID_dict = self.IDTracker[old_ID]
+                self.IDTracker[old_ID] = {"tracked": old_ID_dict["tracked"]+1, "counted": old_ID_dict["counted"]+1, "continuous": True if old_ID_dict["continuous"] else False}
+                # print(old_ID, self.IDTracker[old_ID])
+                # print(f"IDsInCurrentSuspiciousArea = {IDsInCurrentSuspiciousArea}")
+                
+            else:
+                self.IDTracker[old_ID]["tracked"] += 1
+                self.IDTracker[old_ID]["continuous"] = False
+                
+            if self.IDTracker[old_ID]["tracked"] == TRACK_FRAMES:
+                if mode == "counted":
+                    if self.IDTracker[old_ID]["counted"] <= COUNTED_THRESHOLD or self.IDTracker[old_ID]["continuous"] == False:  # id appeared not enough times
+                        print("Remove", old_ID, self.IDTracker[old_ID])
+                        self.totalIn -= 1
+                        
+                else:  # "continuous"
+                    if self.IDTracker[old_ID]["continuous"] == False:  # id appeared continuously
+                        self.totalIn -= 1
+                        
+                self.IDTracker.pop(old_ID)#remove id
+                
+                
+        # add new ID to tracker
+        new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
+        for new_ID in new_IDs:
+            if self.IDTracker.get(new_ID, None) is None:
+                self.IDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
+                
+        self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id
+
     
     def socialDistance(self, image):
         closePairs = []
@@ -564,8 +707,6 @@ class YoloDevice:
         
         
         for index, centroid in enumerate(transformedCentroids):
-            
-            # cv2.circle(image, (int(centroid[0]), int(centroid[1])), 3, (255,255,255), -1)
             
             x_Distance = (centroid[0] - transformedCentroids[:, 0]) * self.realWidthPerPixel
             y_Distance = (centroid[1] - transformedCentroids[:, 1]) * self.realHeightPerPixel
@@ -602,7 +743,6 @@ class YoloDevice:
             for index, detection in enumerate(self.detect_target):#for each detection
             
                 self.detect_target[index] = list(self.detect_target[index])
-                
                 left, top, right, bottom = darknet.bbox2points(detection[2])
                 # left, top, right, bottom = left-50, top-50, right+50, bottom+50
             
@@ -625,7 +765,7 @@ class YoloDevice:
                 if not results.detections:#No face detected
                     centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
                     self.detect_target[index].append((centerX, centerY))
-                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
+                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (0,255,0), -1)
                     continue
                 
                 for bboxIndex, detection in enumerate(results.detections):
@@ -644,11 +784,11 @@ class YoloDevice:
                 centerX, centerY = (left + xmin + width/2), bottom
                 self.detect_target[index].append((centerX, centerY))
                 try:
-                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
+                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (0,255,0), -1)
                 
                 except:
                     print("Draw image shape",drawImage.shape)
-                    print(drawImage)
+                    # print(drawImage)
                     #print(type(drawImage))
                 
         return drawImage
@@ -767,16 +907,89 @@ class YoloDevice:
                 
             cv2.rectangle(image, (t[0], t[1]), (t[2], t[3]), self.bbox_colors[id], 3)
             w, h = (t[2] - t[0]), (t[3] - t[1])
-            
-            detWithID.append([cx, cy, w, h, id])
             cx, cy = int(t[0] + w/2), int(t[1] + h/2)
-             # put the id to the image
-            cv2.putText(image, str(id), (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(255,255,0))
+            detWithID.append(['person', -1, [cx, cy, w, h], id])
             
-        self.detect_target = detWithID#update detection result with id [cx, cy, w, h, id]
+             # put the id to the image
+            cv2.putText(image, str(id), (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.8, color=(0,255,0), thickness=2)
+            
+        self.detect_target = detWithID#update detection [class, score, [cx, cy, w, h], id]
+        # print(self.detect_target)
         
         return image
             
+    # https://github.com/theAIGuysCode/yolov4-deepsort
+    def object_tracker_deep_sort(self, frame):
+        
+        #  # Definition of the parameters
+        # max_cosine_distance = 0.4
+        # nn_budget = None
+        # nms_max_overlap = 1.0
+        
+        # # initialize deep sort
+        # model_filename = 'deepsort/model_data/mars-small128.pb'
+        # encoder = gdet.create_box_encoder(model_filename, batch_size=1)
+        # # calculate cosine distance metric
+        # metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
+        # # initialize tracker
+        # tracker = DeepSortTracker(metric)
+        
+        bboxes = []
+        detections = np.array(self.detect_target)
+        try:
+            dets = detections[:, 2]#get bbox only
+        except:#no detection
+            # print(detections)
+            return
+        
+        for cx, cy, w, h in dets:
+            x = cx - w//2
+            y = cy - h//2
+            bboxes.append([x,y,w,h])
+            
+        scores = detections[:, 1]
+        class_names = detections[:, 0]
+            
+        features = self.encoder(frame, bboxes)#use rgb image to extract features
+        detections = [DeepSortDetection(bbox, score, class_name, feature) for bbox, score, class_name, feature in zip(bboxes, scores, class_names, features)]
+        
+         # Call the tracker
+        self.tracker.predict()
+        self.tracker.update(detections)
+
+        drawImage = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        detectionsWithID = []
+        # update tracks
+        for track in self.tracker.tracks:
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue 
+            bbox = track.to_tlbr()
+            x1, y1, x2, y2 = bbox
+            class_name = track.get_class()
+            id = track.track_id
+            w = x2 - x1
+            h = y2 - y1
+            cx = x1 + w // 2
+            cy = y1 + h // 2
+            detectionsWithID.append(['person', -1, [cx, cy, w, h], id])
+            # assign each id with a color
+            if self.bbox_colors.get(id) == None:
+                self.bbox_colors[id] = (random.randint(0, 255),
+                                        random.randint(0, 255),
+                                        random.randint(0, 255))
+            color = self.bbox_colors[id]
+            # draw bbox on screen(bgr image)
+            cv2.rectangle(drawImage, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+            # cv2.rectangle(drawImage, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+(len(class_name)+len(str(track.track_id)))*17, int(bbox[1])), color, -1)
+            # cv2.putText(drawImage, class_name + "-" + str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
+            cv2.rectangle(drawImage, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+len(str(track.track_id))*17, int(bbox[1])), color, -1)
+            cv2.putText(drawImage, str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
+            
+        
+        self.detect_target = detectionsWithID
+        # print(self.detect_target)
+        
+        return drawImage
         
         
     def set_listener(self, on_detection):
@@ -809,8 +1022,6 @@ class YoloDevice:
     def get_bbox_image(self):
         
         return self.bboxImage
-        
-        
     
     def get_social_distance_image(self):
         
@@ -933,7 +1144,7 @@ class YoloDevice:
         
         return img_path_name
 
-    def test(self, videoFolder):
+    def test(self, videoFolder, tracker="sortOH"):
         
         shutil.rmtree(self.ourput_dir, ignore_errors=True)
         os.mkdir(self.ourput_dir)
@@ -953,14 +1164,41 @@ class YoloDevice:
             self.cap = cv2.VideoCapture(videoPath)
             FPS = self.cap.get(cv2.CAP_PROP_FPS)
             # print(FPS)
-            self.totalIn = 0#reset counter
             # self.tracker = CentroidTracker(max_lost=30, tracker_output_format='mot_challenge', )#reset tracker
-            self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)#yolov4 seeting
-            # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=60)
+            # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)#yolov4 seeting
             # self.tracker = SORT(max_lost=30, tracker_output_format='mot_challenge', iou_threshold=0.5)
             # self.tracker = IOUTracker(max_lost=20, iou_threshold=0.3, min_detection_confidence=0.2, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
             
-            self.lastCentroids = dict()#rest people counting info
+            #SortOH Tracker
+            kalman_tracker.KalmanBoxTracker.count = 0   # Make zero ID number in the new sequence
+            self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
+            self.conf_trgt = 0.35
+            self.conf_objt = 0.75
+            self.tracker.conf_trgt = self.conf_trgt
+            self.tracker.conf_objt = self.conf_objt
+            print(f"thresh = {self.thresh} sortOH:age={30} conf_trgt = {self.conf_trgt }, conf_objt = {self.conf_objt}")
+            
+            #deepSort tracker
+            # Definition of the parameters
+            # max_cosine_distance = 0.8
+            # nn_budget = None
+            # nms_max_overlap = 1.0
+            
+            # # initialize deep sort
+            # model_filename = 'deepsort/model_data/mars-small128.pb'
+            # self.encoder = gdet.create_box_encoder(model_filename, batch_size=1)
+            # # calculate cosine distance metric
+            # metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
+            # # initialize tracker
+            # self.tracker = DeepSortTracker(metric, max_age=30)
+            # print(f"thresh = {self.thresh} DeepSort:age={30} max_cosine_distance = {max_cosine_distance }, nn_budget = {nn_budget}")
+            
+            
+            self.totalIn = 0#reset counter
+            self.lastCentroids = dict()#reset people counting info
+            self.IDTracker = dict()
+            
+            
             GTNumber = int(video.split('.')[0].split('_')[-1])#get the ground truth number of the video
             groundTruth.append(GTNumber)
             self.video_output_draw_name = os.path.join(self.ourput_dir, self.alias + '_output_draw.mp4')         
@@ -1052,7 +1290,6 @@ class YoloDevice:
                 progress.update(1)
         
         
-
     def generateTrainTxt(self, dataFolder, valSplit=0.2, testSplit=0.1):
         print(dataFolder)
         labeledData = os.listdir(dataFolder)

@@ -44,8 +44,8 @@ yolo1 = YoloDevice(
         # weights_file = './weights/yolov4.weights',
         
         data_file = './cfg_person/person.data',
-        thresh = 0.3,
-        output_dir = 'videoTest',
+        thresh = 0.5,
+        output_dir = 'videoTest_0.5',
         video_url = './0325.mp4',
         is_threading = False,
         vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
@@ -65,8 +65,10 @@ yolo1 = YoloDevice(
         draw_socialDistanceInfo=True,
         testMode=True,
         repeat=False,
-        
+        gpu=0,
     )    
 
     
-yolo1.test("usedVideos")
+# yolo1.test("usedVideos")
+# yolo1.test("videoClips")
+yolo1.test("oneVideo")

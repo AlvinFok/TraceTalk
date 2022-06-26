@@ -27,7 +27,7 @@ yolo = YoloDevice(
         draw_pose=True,
         social_distance=True,
         draw_socialDistanceInfo=True,
-        
+        gpu=1,
         )
 
 def webStream(frame, bboxImage, distanceImage):
