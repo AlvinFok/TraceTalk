@@ -12,6 +12,7 @@ import  random
 #poise estimation
 import mediapipe as mp
 from tqdm import tqdm
+import pathlib
 
 #people counting
 from shapely.geometry import Point, Polygon
@@ -68,7 +69,7 @@ class YoloDevice:
         
         
         self.video_url = video_url
-        self.ourput_dir = output_dir
+        self.output_dir = output_dir
         self.run = run
         self.auto_restart = auto_restart
         self.repeat = repeat#auto repeat prediction
@@ -187,7 +188,7 @@ class YoloDevice:
         self.draw_square = draw_square
         self.squareArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.squareArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.suspiciousArea = np.array([[1070, 542],[850, 548],[981, 927],[1343, 921]])#This area use to handle occlusion when people grt in square
+        self.suspiciousArea = np.array([[1070, 582],[850, 588],[981, 927],[1343, 921]])#This area use to handle occlusion when people grt in square
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.IDTracker = dict()
@@ -386,8 +387,8 @@ class YoloDevice:
             
             if self.obj_trace and len(self.detect_target) > 0: # draw the image with object tracking           
                 # self.drawImage = self.object_tracker(self.drawImage)
-                self.drawImage = self.object_tracker_sort_oh(self.drawImage)
-                # self.drawImage = self.object_tracker_deep_sort(frame_rgb)
+                # self.drawImage = self.object_tracker_sort_oh(self.drawImage)
+                self.drawImage = self.object_tracker_deep_sort(frame_rgb)
                 # self.drawImage = self.object_tracker_motpy(frame_rgb)
             elif self.draw_bbox:
                 self.drawImage = draw_boxes(detections, self.drawImage, self.class_colors, self.target_classes, self.vertex)
@@ -595,6 +596,7 @@ class YoloDevice:
     
     def __suspiciousAreaHandling(self):
         IDsInCurrentSuspiciousArea = set()
+        IDsInThisFrame = set()
         detections = dict()
         for det in self.detect_target:
             x, y = det[4]#use this xy not center of bbox
@@ -603,6 +605,7 @@ class YoloDevice:
             currentCentroid = Point((x, y))
             suspiciousAreaPolygon = Polygon(self.suspiciousArea)
             detections[id] = det#save as dict for later
+            IDsInThisFrame.add(id)
             #this id is new and spawn in the suspicious area. That I can say it has occlusion
             if currentCentroid.within(suspiciousAreaPolygon):
                 IDsInCurrentSuspiciousArea.add(id)
@@ -645,11 +648,15 @@ class YoloDevice:
                         '''
         
        # suddenly appear id
-        TRACK_FRAMES = 5  # const for amount of frames to track
-        COUNTED_THRESHOLD = 2
+        TRACK_FRAMES = 10  # const for amount of frames to track
+        COUNTED_THRESHOLD = 9
         mode = "counted"  # ["counted", "continuous"]
         for old_ID in list(self.IDTracker.keys()):
-            if old_ID in IDsInCurrentSuspiciousArea:
+            if self.IDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
+                continue
+            
+            
+            if old_ID in IDsInThisFrame:#if id is in this frame
                 # add counter and keep cont status if already not continuous
                 old_ID_dict = self.IDTracker[old_ID]
                 self.IDTracker[old_ID] = {"tracked": old_ID_dict["tracked"]+1, "counted": old_ID_dict["counted"]+1, "continuous": True if old_ID_dict["continuous"] else False}
@@ -662,7 +669,7 @@ class YoloDevice:
                 
             if self.IDTracker[old_ID]["tracked"] == TRACK_FRAMES:
                 if mode == "counted":
-                    if self.IDTracker[old_ID]["counted"] <= COUNTED_THRESHOLD or self.IDTracker[old_ID]["continuous"] == False:  # id appeared not enough times
+                    if self.IDTracker[old_ID]["counted"] < COUNTED_THRESHOLD:  # id appeared not enough times
                         print("Remove", old_ID, self.IDTracker[old_ID])
                         self.totalIn -= 1
                         
@@ -670,7 +677,7 @@ class YoloDevice:
                     if self.IDTracker[old_ID]["continuous"] == False:  # id appeared continuously
                         self.totalIn -= 1
                         
-                self.IDTracker.pop(old_ID)#remove id
+                # self.IDTracker.pop(old_ID)#remove id
                 
                 
         # add new ID to tracker
@@ -1106,7 +1113,7 @@ class YoloDevice:
             print("[Info] {alias} Set video draw writer. Height={H}, Width={W}".format(alias=self.alias, H=self.H, W=self.W))  
             
         self.frame_draw.write(frame)
-        
+        # print(f"{self.alias} save {self.frame_id}")
         return video_path_name
     
     
@@ -1144,10 +1151,16 @@ class YoloDevice:
         
         return img_path_name
 
-    def test(self, videoFolder, tracker="sortOH"):
-        
-        shutil.rmtree(self.ourput_dir, ignore_errors=True)
-        os.mkdir(self.ourput_dir)
+    def test(self, video, tracker="sortOH"):#track not used
+        if os.path.isfile(video):
+            pathlib.Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+            self.__testWithFile(video)
+        else:#folder
+            self.__testWithFolder(video)
+
+    def __testWithFolder(self, videoFolder):
+        shutil.rmtree(self.output_dir, ignore_errors=True)
+        os.mkdir(self.output_dir)
         
         videoFiles = os.listdir(videoFolder)
         groundTruth = []#number of people get in square
@@ -1201,19 +1214,19 @@ class YoloDevice:
             
             GTNumber = int(video.split('.')[0].split('_')[-1])#get the ground truth number of the video
             groundTruth.append(GTNumber)
-            self.video_output_draw_name = os.path.join(self.ourput_dir, self.alias + '_output_draw.mp4')         
+            self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '_output_draw.mp4')         
             
             
             self.start()#start video predict
             
             predictNumber.append(self.totalIn)
             
-            if self.totalIn != GTNumber:
-                errorInfo[video] = {
-                    "GT":GTNumber,
-                    "predict":self.totalIn
-                }
-                error.append(abs(GTNumber - self.totalIn))
+            
+            errorInfo[video] = {
+                "GT":GTNumber,
+                "predict":self.totalIn
+            }
+            error.append(abs(GTNumber - self.totalIn))
             
             # print(groundTruth)
             # print(predictNumber)
@@ -1228,6 +1241,81 @@ class YoloDevice:
             print(msg)
             print(errorInfo)
         
+        
+    def __testWithFile(self, video):
+        
+        groundTruth = []#number of people get in square
+        predictNumber = []
+        error = []
+        errorInfo = dict()
+        
+        print(f"Test {video}")
+        self.alias = video.split("/")[-1].split(".")[0]
+        self.cap = cv2.VideoCapture(video)
+        FPS = self.cap.get(cv2.CAP_PROP_FPS)
+        # print(FPS)
+        # self.tracker = CentroidTracker(max_lost=30, tracker_output_format='mot_challenge', )#reset tracker
+        # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)#yolov4 seeting
+        # self.tracker = SORT(max_lost=30, tracker_output_format='mot_challenge', iou_threshold=0.5)
+        # self.tracker = IOUTracker(max_lost=20, iou_threshold=0.3, min_detection_confidence=0.2, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
+        
+        #SortOH Tracker
+        # kalman_tracker.KalmanBoxTracker.count = 0   # Make zero ID number in the new sequence
+        # self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
+        # self.conf_trgt = 0.35
+        # self.conf_objt = 0.75
+        # self.tracker.conf_trgt = self.conf_trgt
+        # self.tracker.conf_objt = self.conf_objt
+        # print(f"thresh = {self.thresh} sortOH:age={30} conf_trgt = {self.conf_trgt }, conf_objt = {self.conf_objt}")
+        
+        #deepSort tracker
+        # Definition of the parameters
+        max_cosine_distance = 0.6
+        nn_budget = None
+        nms_max_overlap = 1.0
+        
+        # initialize deep sort
+        model_filename = 'deepsort/model_data/mars-small128.pb'
+        self.encoder = gdet.create_box_encoder(model_filename, batch_size=1)
+        # calculate cosine distance metric
+        metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
+        # initialize tracker
+        self.tracker = DeepSortTracker(metric, max_age=15, n_init=3)
+        print(f"thresh = {self.thresh} DeepSort:age={15} max_cosine_distance = {max_cosine_distance }, nn_budget = {nn_budget}, n_init={3}")
+        
+        
+        self.totalIn = 0#reset counter
+        self.lastCentroids = dict()#reset people counting info
+        self.IDTracker = dict()
+        
+        
+        GTNumber = int(video.split('.')[0].split('_')[-1])#get the ground truth number of the video
+        groundTruth.append(GTNumber)
+        self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '.mp4')         
+        
+        
+        self.start()#start video predict
+        
+        predictNumber.append(self.totalIn)
+        
+        errorInfo[video] = {
+            "GT":GTNumber,
+            "predict":self.totalIn
+        }
+        error.append(abs(GTNumber - self.totalIn))
+        
+        # print(groundTruth)
+        # print(predictNumber)
+        
+        msg = ('-----------------------------------------\n'
+                f'Ground truth:{sum(groundTruth)}\n'
+                f'Predict:{sum(predictNumber)}\n'
+                f'Error:{sum(error)/sum(groundTruth)}\n'
+                '-----------------------------------------'
+        )
+                
+        print(msg)
+        print(errorInfo)
         
     def video2Label(self, videoFolder, outputDir):
         shutil.rmtree(outputDir, ignore_errors=True)#clear output dir
