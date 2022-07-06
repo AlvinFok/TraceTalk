@@ -7528,3 +7528,4 @@
 [Info] Start the program., Time:2022-07-06 14:59:50, Group:, alias:cam1-2022-04-16_14-00-11__43, URL:./0325.mp4 
 [Info] Stop the program., Time:2022-07-06 15:58:25, Group:, alias:cam1-2022-04-16_14-00-11__43, URL:./0325.mp4 
 [Info] Start the program., Time:2022-07-06 16:47:55, Group:, alias:cam1-2022-04-16_14-00-11__43, URL:./0325.mp4 
+[Info] Stop the program., Time:2022-07-06 18:02:08, Group:, alias:cam1-2022-04-16_14-00-11__43, URL:./0325.mp4 

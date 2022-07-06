@@ -643,7 +643,7 @@ class YoloDevice:
         
        # suddenly appear id
         TRACK_FRAMES = 10  # const for amount of frames to track
-        COUNTED_THRESHOLD = 9
+        COUNTED_THRESHOLD = 6
         mode = "counted"  # ["counted", "continuous"]
         for old_ID in list(self.IDTracker.keys()):
             if self.IDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
