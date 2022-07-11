@@ -711,7 +711,7 @@ class YoloDevice:
         # add new and counted ID to tracker
         new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
         for new_ID in new_IDs:
-            if self.IDTracker.get(new_ID, None) is None and self.lastCentroids[new_ID]["counted"]:#new id in this frame and already +1
+            if self.IDTracker.get(new_ID, None) is None :#new id in this frame and already +1 and self.lastCentroids[new_ID]["counted"]
                 self.IDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
                 
         self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id

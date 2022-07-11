@@ -31,7 +31,7 @@ yolo1 = YoloDevice(
         draw_socialDistanceInfo=True,
         testMode=True,
         repeat=False,
-        gpu=0,
+        gpu=1,
     )    
 
     
