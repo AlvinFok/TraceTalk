@@ -1,8 +1,11 @@
-matplotlib==3.3.4
-numpy==1.18.5
-opencv-python==4.1.1.26
-requests==2.27.1
-scipy==1.4.1
+cmake
+boost
+
+matplotlib
+numpy
+opencv-python
+requests
+scipy
 lineTool
 motpy
 ipyfilechooser
@@ -10,6 +13,7 @@ shapely
 flask
 tqdm
 mediapipe
-dlib
 imutils
 requests
+tensorflow
+dlib

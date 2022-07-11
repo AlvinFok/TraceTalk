@@ -12,7 +12,7 @@ def check_for_done(l):
 
 
 processes = list()
-N = 6#how many process running at the same time
+N = 11#how many process running at the same time
 queue = list()
 
 folder = "usedVideos/"
@@ -24,8 +24,7 @@ for video in os.listdir(folder):
 #log file
 file = open("testResult_centroid.log", 'w')
 
-subprocess.Popen(['rm', 'videoTest_centroid/*'])#remove old videos
-
+subprocess.run('rm videoTest_centroid/*', shell=True)#remove old videos
 for process in queue:
     p = subprocess.Popen(process, stdout=file)
     processes.append(p)
