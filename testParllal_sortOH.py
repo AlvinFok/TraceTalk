@@ -1,6 +1,8 @@
 import subprocess
 import time
 import os
+import sys
+print(sys.version_info)
 
 def check_for_done(l):
     for i, p in enumerate(l):

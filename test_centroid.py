@@ -20,7 +20,7 @@ yolo1 = YoloDevice(
         display_message = False,
         obj_trace = True,        
         save_img = False,
-        save_video = True,        
+        save_video = False,        
         target_classes=["person"],
         auto_restart = True,
         skip_frame=2,
@@ -31,7 +31,7 @@ yolo1 = YoloDevice(
         draw_socialDistanceInfo=True,
         testMode=True,
         repeat=False,
-        gpu=1,
+        gpu=0,
     )    
 
     

@@ -65,7 +65,7 @@ class YoloDevice:
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
                  schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0):
         
-        tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
+        tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
         
         
         self.video_url = video_url
@@ -193,6 +193,10 @@ class YoloDevice:
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.IDTracker = dict()
+        self.IDSwith = {
+                        "frame":1000,
+                        "amount":0
+                        }
         
         #social distance
         self.socialDistanceArea = np.array([ [378, 1080],[585, 345],[939, 339],[1590, 1080] ], np.float32)
@@ -460,7 +464,8 @@ class YoloDevice:
             self.frame_id += 1
             
             # self.FPS.update()
-            
+          
+
     #https://www.youtube.com/watch?v=brwgBf6VB0I
     def pose_estimation(self, image):
         for index, detection in enumerate(self.detect_target):#for each detection
@@ -594,11 +599,27 @@ class YoloDevice:
                                       "wh":(w, h),
                                       "counted":count}#set id's count
              
-    
     def __suspiciousAreaHandling(self):
+        '''
+        This function can break down into three parts.
+        occlusion handling
+        ID switching
+        object flash appearing
+        '''
         IDsInCurrentSuspiciousArea = set()
         IDsInThisFrame = set()
+        countedID = set()
         detections = dict()
+        
+        self.IDSwith["frame"] += 1
+        ############################
+        #occlusion handling
+        #assume that some people are occluded when 
+        #they are getting in the square but will
+        #appear in the suspicious area.
+        #So count +1 when someone suddenly appears
+        # n the suspicious area.
+        ############################
         for det in self.detect_target:
             x, y = det[4]#use this xy not center of bbox
             id = det[3]
@@ -613,44 +634,51 @@ class YoloDevice:
                 if self.lastCentroids.get(id, None) is None:
                     print("Area add:", id)
                     self.totalIn += 1
+                    countedID.add(id)
                     center_x, center_y = det[4]
                     self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                               "wh":(w,h),
                                           "counted":True}#set id not counted
-        
-        '''
-        if len(self.IDsInLastSuspiciousArea) == len(IDsInCurrentSuspiciousArea) and self.IDsInLastSuspiciousArea.symmetric_difference(IDsInCurrentSuspiciousArea):#the amount of people is same but ids have difference, that mean some one may change id
-            disappearID = self.IDsInLastSuspiciousArea.difference(IDsInCurrentSuspiciousArea)
-            newID = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
+                
+                    ############################
+                    #ID switch happening
+                    ############################
+                    if self.IDSwith.get("frame", 10) < 5 and self.IDSwith.get("amount", 0) > 0:
+                        self.totalIn -=1
+                        self.IDSwith["amount"] -= 1
+                        print(f"Id switch:{id}")
+                
+        ############################
+        #ID switch handling
+        #assume that 3 people are in the suspicious area but id switches happening and the id switch process is fast.
+        #example:ID 1 -> ID 4
+        #frame 1:
+        #ID 1,2,3
+        #frame 2:
+        #ID 2,3
+        #frame 3:
+        #2, 3
+        #frame 4:
+        #2, 3, 4
+        ############################
+        if len(self.IDsInLastSuspiciousArea) > len(IDsInCurrentSuspiciousArea):#the amount of people in the last frame is larger than this frame, may have id switching in the future
+            # disappearID = self.IDsInLastSuspiciousArea.difference(IDsInCurrentSuspiciousArea)
+            # newID = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
+            self.IDSwith = {
+                            "frame":0,
+                            "amount":len(self.IDsInLastSuspiciousArea) - len(IDsInCurrentSuspiciousArea)
+                            }
             
-            for new in newID:#find the new id belong to which old id
-                new_detection = detections[new]
-                new_w, new_h = new_detection[2][2:]
-                new_x, new_y = new_detection[4]
-                for old in disappearID:
-                    old_detection = self.lastCentroids[old]
-                    old_w, old_h = old_detection["wh"]
-                    old_x, old_y = old_detection["center"]
-                    
-                    distance = ( (old_x-new_x)**2 + (old_y-new_y)**2 )**0.5
-                    if distance > 50 or new == old:#two ids are too far from each other or is same id
-                        continue
             
-                    w_ratio, h_ratio = new_w/old_w, new_h/old_h
-                    if w_ratio > 1:
-                        w_ratio = 1 / w_ratio
-                    if h_ratio > 1:
-                        h_ratio = 1 / h_ratio
-                    
-                    if w_ratio > 0.9 and h_ratio > 0.9:#the ratio of two ids is similar, say they are same people
-                        print("ID change:", id)
-                        self.totalIn -= 1#IDs change in suspicious area will let amount of visiter +1 so -1 because we think new id and old is same people
-                        self.lastCentroids[id]["counted"] = True 
-                        '''
         
-       # suddenly appear id
+        ############################
+        #object flash appearing
+        #There has been some error detection of Yolo just flashing on the screen
+        #when there have a lot of people. So just keep tracking the object.
+        ############################
+        # suddenly appear id
         TRACK_FRAMES = 10  # const for amount of frames to track
-        COUNTED_THRESHOLD = 9
+        COUNTED_THRESHOLD = 8
         mode = "counted"  # ["counted", "continuous"]
         for old_ID in list(self.IDTracker.keys()):
             if self.IDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
@@ -681,14 +709,14 @@ class YoloDevice:
                 # self.IDTracker.pop(old_ID)#remove id
                 
                 
-        # add new ID to tracker
+        # add new and counted ID to tracker
         new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
         for new_ID in new_IDs:
-            if self.IDTracker.get(new_ID, None) is None:
+            if self.IDTracker.get(new_ID, None) is None and self.lastCentroids[new_ID]["counted"]:#new id in this frame and already +1
                 self.IDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
                 
         self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id
-
+  
     
     def socialDistance(self, image):
         closePairs = []

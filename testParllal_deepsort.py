@@ -12,14 +12,14 @@ def check_for_done(l):
 
 
 processes = list()
-N = 4#how many process running at the same time
+N = 11#how many process running at the same time
 queue = list()
 
 folder = "usedVideos/"
 
 #generate command
 for video in os.listdir(folder):
-    queue.append(['python', 'test.py', '--video', os.path.join(folder, video)])
+    queue.append(['python', 'test_deepsort.py', '--video', os.path.join(folder, video)])
 
 #log file
 file = open("testResult_deepsort.log", 'w')
