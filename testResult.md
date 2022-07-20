@@ -137,7 +137,7 @@ thresh = 0.65 sortOH:age=30 conf_trgt = 0.35, conf_objt = 0.75
 {'usedVideos/cam1-2022-05-07_16-00-33__7.mkv': {'GT': 7, 'predict': 8}}
 
 
-sortOH with ID switch handling 4/179
+sortOH with ID switch handling 4/160
 thresh = 0.5 sortOH:age=30 conf_trgt = 0.35, conf_objt = 0.75
 {'usedVideos/cam1-2022-04-16_15-00-14__35.mkv': {'GT': 35, 'predict': 35}}
 {'usedVideos/cam1-2022-03-25_13-00-43__28.mkv': {'GT': 28, 'predict': 27}}
@@ -150,3 +150,33 @@ thresh = 0.5 sortOH:age=30 conf_trgt = 0.35, conf_objt = 0.75
 {'usedVideos/cam1-2022-05-07_16-00-33__7.mkv': {'GT': 7, 'predict': 7}}
 {'usedVideos/cam1-2022-04-02_15-00-07__3.mkv': {'GT': 3, 'predict': 3}}
 {'usedVideos/cam1-2022-05-08_15-00-43__10.mkv': {'GT': 10, 'predict': 10}}
+
+
+centroid with id switch handling
+19/160
+{'usedVideos/cam1-2022-05-07_17-00-36__3.mkv': {'GT': 3, 'predict': 1}}
+{'usedVideos/cam1-2022-05-08_16-00-46__7.mkv': {'GT': 7, 'predict': 7}}
+{'usedVideos/cam1-2022-05-08_15-00-43__10.mkv': {'GT': 10, 'predict': 8}}
+{'usedVideos/cam1-2022-05-07_16-00-33__7.mkv': {'GT': 7, 'predict': 8}}
+{'usedVideos/cam1-2022-05-07_14-00-27__11.mkv': {'GT': 11, 'predict': 13}}
+{'usedVideos/cam1-2022-05-08_14-00-40__7.mkv': {'GT': 7, 'predict': 9}}
+{'usedVideos/cam1-2022-04-16_16-00-17__7.mkv': {'GT': 7, 'predict': 6}}
+{'usedVideos/cam1-2022-04-02_15-00-07__3.mkv': {'GT': 3, 'predict': 4}}
+{'usedVideos/cam1-2022-04-16_15-00-14__35.mkv': {'GT': 35, 'predict': 34}}
+{'usedVideos/cam1-2022-03-25_13-00-43__27.mkv': {'GT': 27, 'predict': 31}}
+{'usedVideos/cam1-2022-04-16_14-00-11__43.mkv': {'GT': 43, 'predict': 40}}
+
+
+deepsort with ID switch handling
+9/160
+{'usedVideos/cam1-2022-05-07_17-00-36__3.mkv': {'GT': 3, 'predict': 3}}
+{'usedVideos/cam1-2022-05-08_16-00-46__7.mkv': {'GT': 7, 'predict': 8}}
+{'usedVideos/cam1-2022-05-08_15-00-43__10.mkv': {'GT': 10, 'predict': 9}}
+{'usedVideos/cam1-2022-05-07_14-00-27__11.mkv': {'GT': 11, 'predict': 11}}
+{'usedVideos/cam1-2022-04-16_16-00-17__7.mkv': {'GT': 7, 'predict': 4}}
+{'usedVideos/cam1-2022-04-16_15-00-14__35.mkv': {'GT': 35, 'predict': 36}}
+{'usedVideos/cam1-2022-03-25_13-00-43__27.mkv': {'GT': 27, 'predict': 27}}
+{'usedVideos/cam1-2022-05-07_16-00-33__7.mkv': {'GT': 7, 'predict': 6}}
+{'usedVideos/cam1-2022-04-02_15-00-07__3.mkv': {'GT': 3, 'predict': 3}}
+{'usedVideos/cam1-2022-05-08_14-00-40__7.mkv': {'GT': 7, 'predict': 6}}
+{'usedVideos/cam1-2022-04-16_14-00-11__43.mkv': {'GT': 43, 'predict': 42}}

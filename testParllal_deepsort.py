@@ -12,7 +12,7 @@ def check_for_done(l):
 
 
 processes = list()
-N = 11#how many process running at the same time
+N = 7#how many process running at the same time
 queue = list()
 
 folder = "usedVideos/"
