@@ -30,9 +30,10 @@ yolo1 = YoloDevice(
          draw_socialDistanceInfo=True,
          testMode=True,
          repeat=False,
+         gpu=1,
         
      )    
 
     
 # yolo1.video2Label("./usedVideos/", "./labeledData/")
-yolo1.generateTrainTxt("./labeledData/")
+yolo1.generateTrainTxt("./labelData/")

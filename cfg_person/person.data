@@ -1,7 +1,7 @@
 classes= 1
-train  = ./labeledData/train.txt
-valid  = ./labeledData/val.txt
-test = ./labeledData/test.txt
+train  = ./labelData/train.txt
+valid  = ./labelData/val.txt
+test = ./labelData/test.txt
 names = ./cfg_person/person.names
 backup = ./darknet/backup/
 

@@ -161,3 +161,43 @@ thresh = 0.5 sortOH:age=30 conf_trgt = 0.35, conf_objt = 0.75
 {'usedVideos/cam1-2022-05-07_14-00-27__11.mkv': {'GT': 11, 'predict': 11}}
 {'usedVideos/cam1-2022-05-07_16-00-33__7.mkv': {'GT': 7, 'predict': 7}}
 {'usedVideos/cam1-2022-03-25_13-00-43__27.mkv': {'GT': 27, 'predict': 27}}
+
+sortOH with yolo final weight
+{'usedVideos/cam1-2022-05-07_17-00-36__3.mkv': {'GT': 3, 'predict': 2}}
+{'usedVideos/cam1-2022-05-07_14-00-27__11.mkv': {'GT': 11, 'predict': 12}}
+{'usedVideos/cam1-2022-04-16_16-00-17__7.mkv': {'GT': 7, 'predict': 7}}
+{'usedVideos/cam1-2022-04-16_15-00-14__35.mkv': {'GT': 35, 'predict': 37}}
+{'usedVideos/cam1-2022-04-02_15-00-07__3.mkv': {'GT': 3, 'predict': 3}}
+{'usedVideos/cam1-2022-05-08_14-00-40__7.mkv': {'GT': 7, 'predict': 7}}
+{'usedVideos/cam1-2022-05-07_16-00-33__7.mkv': {'GT': 7, 'predict': 7}}
+{'usedVideos/cam1-2022-05-08_16-00-46__7.mkv': {'GT': 7, 'predict': 10}}
+{'usedVideos/cam1-2022-05-08_15-00-43__10.mkv': {'GT': 10, 'predict': 11}}
+{'usedVideos/cam1-2022-03-25_13-00-43__29.mkv': {'GT': 29, 'predict': 29}}
+{'usedVideos/cam1-2022-04-16_14-00-11__43.mkv': {'GT': 43, 'predict': 64}}
+
+sortOH with yolo 230000 weight
+{'usedVideos/cam1-2022-05-08_16-00-46__7.mkv': {'GT': 7, 'predict': 8}}
+{'usedVideos/cam1-2022-04-16_16-00-17__7.mkv': {'GT': 7, 'predict': 7}}
+{'usedVideos/cam1-2022-04-16_15-00-14__35.mkv': {'GT': 35, 'predict': 41}}
+{'usedVideos/cam1-2022-03-25_13-00-43__29.mkv': {'GT': 29, 'predict': 29}}
+{'usedVideos/cam1-2022-04-16_14-00-11__43.mkv': {'GT': 43, 'predict': 61}}
+{'usedVideos/cam1-2022-04-02_15-00-07__3.mkv': {'GT': 3, 'predict': 3}}
+{'usedVideos/cam1-2022-05-08_15-00-43__10.mkv': {'GT': 10, 'predict': 11}}
+{'usedVideos/cam1-2022-05-07_16-00-33__7__2.mkv': {'GT': 2, 'predict': 7}}
+
+
+sortOH with new video
+{'video/cam1-2022-04-13_15-00-26__1__1.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 4, 'GT_Current': 1, 'Pred_Current': 3}}
+{'video/cam1-2022-04-10_15-00-46__1__1.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 10, 'GT_Current': 1, 'Pred_Current': -2}}
+{'video/cam1-2022-04-03_16-00-24__1__1.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 8, 'GT_Current': 1, 'Pred_Current': 4}}
+{'video/cam1-2022-04-10_14-00-44__1__1.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 9, 'GT_Current': 1, 'Pred_Current': -6}}
+{'video/cam1-2022-04-03_14-00-19__1__1.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 16, 'GT_Current': 1, 'Pred_Current': 1}}
+{'video/cam1-2022-04-03_15-00-21__1__1.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 30, 'GT_Current': 1, 'Pred_Current': 3}}
+
+
+{'video/cam1-2022-04-13_15-00-26__3__2.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 4, 'GT_Current': 1, 'Pred_Current': 3}}
+{'video/cam1-2022-04-10_14-00-44__10__-4.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 8, 'GT_Current': -4, 'Pred_Current': -7}}
+{'video/cam1-2022-04-10_15-00-46__10__-2.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 9, 'GT_Current': -2, 'Pred_Current': -3}}
+{'video/cam1-2022-04-03_16-00-24__8__4.mkv': {'GT_TotalIn': 8, 'Pre__TotalIn': 8, 'GT_Current': 4, 'Pred_Current': 4}}
+{'video/cam1-2022-04-03_14-00-19__16__1.mkv': {'GT_TotalIn': 16, 'Pre__TotalIn': 16, 'GT_Current': 1, 'Pred_Current': 1}}
+{'video/cam1-2022-04-03_15-00-21__1__1.mkv': {'GT_TotalIn': 1, 'Pre__TotalIn': 26, 'GT_Current': 1, 'Pred_Current': 1}}

@@ -149,3 +149,7 @@ make clean
 make
 ```
 
+# Format of testing videos
+```
+${dateTime}__${getIn}__${current}.mkv
+```

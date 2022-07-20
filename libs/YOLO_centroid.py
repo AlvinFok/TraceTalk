@@ -188,7 +188,7 @@ class YoloDevice:
         self.draw_square = draw_square
         self.squareArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.squareArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.suspiciousArea = np.array([[1070, 582],[850, 588],[981, 927],[1343, 921]])#This area use to handle occlusion when people grt in square
+        self.suspiciousArea = np.array([[1075, 582],[850, 588],[981, 927],[1347, 921]])#This area use to handle occlusion when people grt in square
 
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
