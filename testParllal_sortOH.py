@@ -1,8 +1,6 @@
 import subprocess
 import time
 import os
-import sys
-print(sys.version_info)
 
 def check_for_done(l):
     for i, p in enumerate(l):
@@ -12,7 +10,7 @@ def check_for_done(l):
 
 
 processes = list()
-N = 10#how many process running at the same time
+N = 9#how many process running at the same time
 queue = list()
 
 folder = "usedVideos"

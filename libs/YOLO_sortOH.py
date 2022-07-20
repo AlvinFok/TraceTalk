@@ -65,7 +65,7 @@ class YoloDevice:
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
                  schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0):
         
-        tf.config.experimental.set_visible_devices(gpus, 'GPU')
+        tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
         
         
         self.video_url = video_url
@@ -187,9 +187,12 @@ class YoloDevice:
         self.totalIn = 0#count how many people enter the area totally
         self.currentIn = 0#how many people are in the area right now
         self.draw_square = draw_square
-        self.squareArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
-        self.squareArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.suspiciousArea = np.array([[1070, 582],[850, 588],[981, 927],[1343, 921]])#This area use to handle occlusion when people grt in square
+        # self.countInArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
+        # self.countInArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+        self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
+        self.countInArea_cal = np.array([[0, 1090],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+        self.countOutArea = np.array([[0, 1080],[0, 100],[557, 100],[1007, 240],[994, 408],[1491, 960],[1562, 822],[1920, 1090]])
+        self.suspiciousArea = np.array([[1075, 582],[850, 588],[981, 927],[1347, 921]])#This area use to handle occlusion when people grt in square
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.IDTracker = dict()
@@ -409,7 +412,9 @@ class YoloDevice:
                 self.drawImage = draw_polylines(self.drawImage, self.vertex)  # draw the polygon
                 
             if self.draw_square:
-                cv2.polylines(self.drawImage, pts=[self.squareArea_draw], isClosed=True, color=(0,0,255), thickness=3)#draw square area
+                cv2.polylines(self.drawImage, pts=[self.countInArea_draw], isClosed=True, color=(0,0,255), thickness=3)#draw square area
+                cv2.polylines(self.drawImage, pts=[self.countOutArea], isClosed=True, color=(255,0,0), thickness=3)#draw square area
+                
                 
             if self.draw_socialDistanceArea:
                 socialDistanceArea_int = np.array(self.socialDistanceArea, np.int32)
@@ -542,19 +547,31 @@ class YoloDevice:
         self.__suspiciousAreaHandling()
         
         for det in self.detect_target:
+            if len(det) < 5 or None in det[4]:#center not None
+                continue
             # print(det)
             count = False
             id = det[3]
-            if len(det) < 5 or None in det[4]:#center not None
-                continue
-
             center_x, center_y = det[4]
             w, h = det[2][2:]
             
+            countInAreaPolygon = Polygon(self.countInArea_cal)
+            countOutAreaPolygon = Polygon(self.countOutArea)
+            currentCentroid = Point((center_x, center_y))
+            
             if self.lastCentroids.get(id, None) is None:#Don't have this id in last frame
+                countIn = False
+                countOut = False
+                
+                if currentCentroid.within(countInAreaPolygon):#Either inside or outside the square
+                    countIn = True
+                else:
+                    countOut = True
                 self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                           "wh":(w, h),
-                                          "counted":False}#set id not counted
+                                          "countIn":countIn,#set id not counted
+                                          "countOut":countOut
+                                          }
                 
                 continue
             
@@ -568,12 +585,13 @@ class YoloDevice:
             
             # print(id, lastCentroid, (center_x, center_y))
             lastCentroid = Point(lastCentroid)
-            currentCentroid = Point((center_x, center_y))
-            
-            squareAreaPolygon = Polygon(self.squareArea_cal)
             
             
-            inSquareWhenAppear = lastCentroid.within(squareAreaPolygon) and currentCentroid.within(squareAreaPolygon)
+            
+            
+            
+            
+            inSquareWhenAppear = lastCentroid.within(countInAreaPolygon) and currentCentroid.within(countInAreaPolygon)
             if inSquareWhenAppear:#The last position and current position are in the square but not counted. That means people show up in the square at the beginning.
                 #mark the people counted but not plus 1
                 count = True
@@ -581,23 +599,26 @@ class YoloDevice:
             # if the last centroid not in square and current centroid in square and non-counted
             # that mean the person get into the square from outside.
             # So count it
-            isGetIn = not lastCentroid.within(squareAreaPolygon) and currentCentroid.within(squareAreaPolygon) and not self.lastCentroids[id]["counted"]
+            isGetIn = not lastCentroid.within(countInAreaPolygon) and currentCentroid.within(countInAreaPolygon) and not self.lastCentroids[id]["countIn"]
             #last centroid in square and current centroid not in square
-            isGetOut = lastCentroid.within(squareAreaPolygon) and not currentCentroid.within(squareAreaPolygon)
+            isGetOut = lastCentroid.within(countOutAreaPolygon) and not currentCentroid.within(countOutAreaPolygon) and not self.lastCentroids[id]["countOut"]
             
             if isGetIn:#get in and not counted
                 print("Normal add:", id)
                 self.totalIn += 1
                 self.currentIn += 1
-                count = True
+                self.lastCentroids[id]["countIn"] = True
+                # self.lastCentroids[id]["countOut"] = False
                 
-            elif isGetOut:
+                
+            if isGetOut:
                 print("Normal out:", id)
                 self.currentIn -= 1
+                # self.lastCentroids[id]["countIn"] = False
+                self.lastCentroids[id]["countOut"] = True
                 
-            self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
-                                      "wh":(w, h),
-                                      "counted":count}#set id's count
+            self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center
+
              
     
     def __suspiciousAreaHandling(self):
@@ -640,7 +661,9 @@ class YoloDevice:
                     center_x, center_y = det[4]
                     self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                               "wh":(w,h),
-                                          "counted":True}#set id not counted
+                                          "countIn":True,
+                                          "countOut":False
+                                          }#set id not counted
                 
                     ############################
                     #ID switch happening
@@ -681,7 +704,7 @@ class YoloDevice:
         ############################
         # suddenly appear id
         TRACK_FRAMES = 10  # const for amount of frames to track
-        COUNTED_THRESHOLD = 8
+        COUNTED_THRESHOLD = 6
         mode = "counted"  # ["counted", "continuous"]
         for old_ID in list(self.IDTracker.keys()):
             if self.IDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
@@ -706,7 +729,7 @@ class YoloDevice:
                         self.totalIn -= 1
                         self.currentIn -= 1
                         
-                else:  # "continuous"
+                else:  # "continuous" not using
                     if self.IDTracker[old_ID]["continuous"] == False:  # id appeared continuously
                         self.totalIn -= 1
                         self.currentIn -= 1
@@ -717,7 +740,7 @@ class YoloDevice:
         # add new and counted ID to tracker
         new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
         for new_ID in new_IDs:
-            if self.IDTracker.get(new_ID, None) is None and self.lastCentroids[new_ID]["counted"]:#new id in this frame and already +1
+            if self.IDTracker.get(new_ID, None) is None :#new id in this frame and already +1 and self.lastCentroids[new_ID]["counted"]
                 self.IDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
                 
         self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id
@@ -1225,30 +1248,15 @@ class YoloDevice:
             self.tracker.conf_objt = self.conf_objt
             print(f"thresh = {self.thresh} sortOH:age={30} conf_trgt = {self.conf_trgt }, conf_objt = {self.conf_objt}")
             
-            #deepSort tracker
-            # Definition of the parameters
-            # max_cosine_distance = 0.8
-            # nn_budget = None
-            # nms_max_overlap = 1.0
-            
-            # # initialize deep sort
-            # model_filename = 'deepsort/model_data/mars-small128.pb'
-            # self.encoder = gdet.create_box_encoder(model_filename, batch_size=1)
-            # # calculate cosine distance metric
-            # metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
-            # # initialize tracker
-            # self.tracker = DeepSortTracker(metric, max_age=30)
-            # print(f"thresh = {self.thresh} DeepSort:age={30} max_cosine_distance = {max_cosine_distance }, nn_budget = {nn_budget}")
-            
-            
             self.totalIn = 0#reset counter
             self.currentIn = 0
             self.lastCentroids = dict()#reset people counting info
             self.IDTracker = dict()
             
             
-            GTNumber = int(video.split('.')[0].split('_')[-1])#get the ground truth number of the video
-            groundTruth.append(GTNumber)
+            GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
+            GTNumberCurrent = int(video.split('.')[0].split('__')[-1])
+            groundTruth.append(GTNumberIn)
             self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '_output_draw.mp4')         
             
             
@@ -1256,12 +1264,14 @@ class YoloDevice:
             
             predictNumber.append(self.totalIn)
             
-            if self.totalIn != GTNumber:
+            if self.totalIn != GTNumberIn:
                 errorInfo[video] = {
-                    "GT":GTNumber,
-                    "predict":self.totalIn
+                    "GT_TotalIn":GTNumberIn,
+                    "Pre__TotalIn":self.totalIn,
+                    "GT_Current":GTNumberCurrent,
+                    "Pred_Current":self.currentIn
                 }
-                error.append(abs(GTNumber - self.totalIn))
+                error.append(abs(GTNumberIn - self.totalIn))
             
             # print(groundTruth)
             # print(predictNumber)
@@ -1325,8 +1335,9 @@ class YoloDevice:
         self.IDTracker = dict()
         
         
-        GTNumber = int(video.split('.')[0].split('_')[-1])#get the ground truth number of the video
-        groundTruth.append(GTNumber)
+        GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
+        GTNumberCurrent = int(video.split('.')[0].split('__')[-1])
+        groundTruth.append(GTNumberIn)
         self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '_output_draw.mp4')         
         
         
@@ -1336,22 +1347,13 @@ class YoloDevice:
         
         
         errorInfo[video] = {
-            "GT":GTNumber,
-            "predict":self.totalIn
+            "GT_TotalIn":GTNumberIn,
+            "Pre__TotalIn":self.totalIn,
+            "GT_Current":GTNumberCurrent,
+            "Pred_Current":self.currentIn
         }
-        error.append(abs(GTNumber - self.totalIn))
+        error.append(abs(GTNumberIn - self.totalIn))
         
-        # print(groundTruth)
-        # print(predictNumber)
-        
-        msg = ('-----------------------------------------\n'
-                f'Ground truth:{sum(groundTruth)}\n'
-                f'Predict:{sum(predictNumber)}\n'
-                f'Error:{sum(error)/sum(groundTruth)}\n'
-                '-----------------------------------------'
-        )
-                
-        print(msg)
         print(errorInfo)
         
     def video2Label(self, videoFolder, outputDir):

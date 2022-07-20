@@ -5,10 +5,10 @@ import argparse
 #yolov4 tiny
 yolo1 = YoloDevice(
         config_file = './cfg_person/yolov4-tiny-person.cfg',
-        weights_file = './weights/yolov4-tiny-person_230000.weights',
+        # weights_file = './weights/yolov4-tiny-person_230000.weights',
+        weights_file = './darknet/backup/yolov4-tiny-person_final.weights',
         # config_file = './cfg_person/yolov4.cfg',
         # weights_file = './weights/yolov4.weights',
-        
         data_file = './cfg_person/person.data',
         thresh = 0.5,
         output_dir = 'videoTest_sortOH',
@@ -31,7 +31,7 @@ yolo1 = YoloDevice(
         draw_socialDistanceInfo=True,
         testMode=True,
         repeat=False,
-        gpu=0,
+        gpu=1,
     )    
 
     

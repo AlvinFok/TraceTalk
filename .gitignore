@@ -9,7 +9,7 @@ videoTest/
 usedVideos/
 videoClips/
 #yolo training data
-labeledData/
+labelData/
 #lib
 log.txt
 /multi-object-tracker
