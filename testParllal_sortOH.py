@@ -10,13 +10,13 @@ def check_for_done(l):
 
 
 processes = list()
-N = 9#how many process running at the same time
+N = 2#how many process running at the same time
 queue = list()
 
 folder = "usedVideos"
 
 #generate command
-for video in os.listdir(folder):
+for video in sorted(os.listdir(folder)):
     queue.append(['python', 'test_sortOH.py', '--video', os.path.join(folder, video)])
 
 #log file

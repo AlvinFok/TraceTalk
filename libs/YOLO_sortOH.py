@@ -147,22 +147,6 @@ class YoloDevice:
         self.tracker.conf_objt = self.conf_objt
         
         
-        #deepSort tracker
-        # Definition of the parameters
-        # max_cosine_distance = 0.8
-        # nn_budget = None
-        # nms_max_overlap = 1.0
-        
-        # # initialize deep sort
-        # model_filename = 'deepsort/model_data/mars-small128.pb'
-        # self.encoder = gdet.create_box_encoder(model_filename, batch_size=1)
-        # # calculate cosine distance metric
-        # metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
-        # # initialize tracker
-        # self.tracker = DeepSortTracker(metric, max_age=30)
-        
-        
-        
         self.bbox_colors = {}
         
         # Video initilize
@@ -191,8 +175,8 @@ class YoloDevice:
         # self.countInArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
         self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.countInArea_cal = np.array([[0, 1090],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.countOutArea = np.array([[0, 1080],[0, 100],[557, 100],[1007, 240],[994, 408],[1491, 960],[1562, 822],[1920, 1090]])
-        self.suspiciousArea = np.array([[1075, 582],[850, 588],[981, 927],[1347, 921]])#This area use to handle occlusion when people grt in square
+        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1194, 476],[1187, 590],[1539, 931],[1575, 827],[1920, 1080]])
+        self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.IDTracker = dict()
@@ -200,6 +184,7 @@ class YoloDevice:
                         "frame":1000,
                         "amount":0
                         }
+        self.lastFrame = None#for merge method
         
         #social distance
         self.socialDistanceArea = np.array([ [378, 1080],[585, 345],[939, 339],[1590, 1080] ], np.float32)
@@ -468,7 +453,7 @@ class YoloDevice:
                 predict_time_sum = 0
                 
             self.frame_id += 1
-            
+            self.lastFrame = self.frame
             # self.FPS.update()
             
     #https://www.youtube.com/watch?v=brwgBf6VB0I
@@ -549,24 +534,22 @@ class YoloDevice:
         for det in self.detect_target:
             if len(det) < 5 or None in det[4]:#center not None
                 continue
-            # print(det)
-            count = False
             id = det[3]
             center_x, center_y = det[4]
             w, h = det[2][2:]
-            
             countInAreaPolygon = Polygon(self.countInArea_cal)
             countOutAreaPolygon = Polygon(self.countOutArea)
             currentCentroid = Point((center_x, center_y))
             
             if self.lastCentroids.get(id, None) is None:#Don't have this id in last frame
+                
                 countIn = False
                 countOut = False
                 
-                if currentCentroid.within(countInAreaPolygon):#Either inside or outside the square
+                if currentCentroid.within(countInAreaPolygon):#inside count out area that mean only can count out
                     countIn = True
-                else:
-                    countOut = True
+                elif currentCentroid.within(countInAreaPolygon):
+                    pass
                 self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                           "wh":(w, h),
                                           "countIn":countIn,#set id not counted
@@ -582,19 +565,13 @@ class YoloDevice:
                 continue
             
             lastCentroid = self.lastCentroids[id]["center"]
-            
-            # print(id, lastCentroid, (center_x, center_y))
             lastCentroid = Point(lastCentroid)
+
             
-            
-            
-            
-            
-            
-            inSquareWhenAppear = lastCentroid.within(countInAreaPolygon) and currentCentroid.within(countInAreaPolygon)
-            if inSquareWhenAppear:#The last position and current position are in the square but not counted. That means people show up in the square at the beginning.
-                #mark the people counted but not plus 1
-                count = True
+            # inSquareWhenAppear = lastCentroid.within(countInAreaPolygon) and currentCentroid.within(countInAreaPolygon)
+            # if inSquareWhenAppear:#The last position and current position are in the square but not counted. That means people show up in the square at the beginning.
+            #     #mark the people counted but not plus 1
+            #     count = True
             
             # if the last centroid not in square and current centroid in square and non-counted
             # that mean the person get into the square from outside.
@@ -617,9 +594,7 @@ class YoloDevice:
                 # self.lastCentroids[id]["countIn"] = False
                 self.lastCentroids[id]["countOut"] = True
                 
-            self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center
-
-             
+            self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center        
     
     def __suspiciousAreaHandling(self):
         '''
@@ -688,12 +663,8 @@ class YoloDevice:
         #2, 3, 4
         ############################
         if len(self.IDsInLastSuspiciousArea) > len(IDsInCurrentSuspiciousArea):#the amount of people in the last frame is larger than this frame, may have id switching in the future
-            # disappearID = self.IDsInLastSuspiciousArea.difference(IDsInCurrentSuspiciousArea)
-            # newID = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
-            self.IDSwith = {
-                            "frame":0,
-                            "amount":len(self.IDsInLastSuspiciousArea) - len(IDsInCurrentSuspiciousArea)
-                            }
+            self.IDSwith["frame"] = 0
+            self.IDSwith["amount"] += len(self.IDsInLastSuspiciousArea) - len(IDsInCurrentSuspiciousArea)
             
             
         
@@ -704,7 +675,7 @@ class YoloDevice:
         ############################
         # suddenly appear id
         TRACK_FRAMES = 10  # const for amount of frames to track
-        COUNTED_THRESHOLD = 6
+        COUNTED_THRESHOLD = 8
         mode = "counted"  # ["counted", "continuous"]
         for old_ID in list(self.IDTracker.keys()):
             if self.IDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
@@ -738,8 +709,8 @@ class YoloDevice:
                 
                 
         # add new and counted ID to tracker
-        new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
-        for new_ID in new_IDs:
+        # new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
+        for new_ID in countedID:
             if self.IDTracker.get(new_ID, None) is None :#new id in this frame and already +1 and self.lastCentroids[new_ID]["counted"]
                 self.IDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
                 
@@ -802,6 +773,17 @@ class YoloDevice:
     
     #https://google.github.io/mediapipe/solutions/face_detection.html
     def face_detection(self, detectImage, drawImage):
+        #only use yolo center
+        # for index, detection in enumerate(self.detect_target):#for each detection
+        #     self.detect_target[index] = list(self.detect_target[index])
+        #     left, top, right, bottom = darknet.bbox2points(detection[2])
+        #     imageWidth, imageHeight = right - left, bottom - top
+        #     centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
+        #     self.detect_target[index].append((centerX, centerY))
+        #     cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
+        
+        # return drawImage
+        
         
         with self.mp_face_detection.FaceDetection(min_detection_confidence=0.3) as face_detection:
             for index, detection in enumerate(self.detect_target):#for each detection
@@ -975,7 +957,7 @@ class YoloDevice:
             detWithID.append(['person', -1, [cx, cy, w, h], id])
             
              # put the id to the image
-            cv2.putText(image, str(id), (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.8, color=(0,255,0), thickness=2)
+            cv2.putText(image, str(id), (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
             
         self.detect_target = detWithID#update detection [class, score, [cx, cy, w, h], id]
         # print(self.detect_target)

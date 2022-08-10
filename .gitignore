@@ -11,6 +11,7 @@ videoClips/
 #yolo training data
 labelData/
 #lib
+*.log
 log.txt
 /multi-object-tracker
 /darknet
@@ -123,7 +124,7 @@ celerybeat.pid
 .env
 .venv
 env/
-venv/
+venv*/
 ENV/
 env.bak/
 venv.bak/
