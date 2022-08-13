@@ -65,7 +65,9 @@ class YoloDevice:
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
                  schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0):
         
-        tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
+        tf.config.experimental.set_visible_devices(gpus, 'GPU')
+
+
         
         
         self.video_url = video_url
