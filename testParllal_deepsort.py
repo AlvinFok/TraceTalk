@@ -12,7 +12,7 @@ def check_for_done(l):
 
 
 processes = list()
-N = 2#how many process running at the same time
+N = 5#how many process running at the same time
 queue = list()
 
 folder = "usedVideos/"
@@ -24,7 +24,7 @@ for video in os.listdir(folder):
 #log file
 file = open("testResult_deepsort.log", 'w')
 
-subprocess.run('rm videoTest_sortOH/*', shell=True)#remove old videos
+subprocess.run('rm videoTest_deepsort/*', shell=True)#remove old videos
 
 
 for process in queue:

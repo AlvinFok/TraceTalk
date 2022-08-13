@@ -184,10 +184,12 @@ class YoloDevice:
         self.infoImage = np.zeros((1080,1920,4))
         
         #people counting
-        self.totalIn = 0#count how many people get in the area
+        self.totalIn = 0#count how many people enter the area totally
         self.currentIn = 0#how many people are in the area right now
         self.draw_square = draw_square
-        self.squareArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
+        # self.countInArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
+        # self.countInArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+        self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.countInArea_cal = np.array([[0, 1090],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
         self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1194, 476],[1187, 590],[1539, 931],[1575, 827],[1920, 1080]])
         self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
@@ -409,7 +411,9 @@ class YoloDevice:
                 self.drawImage = draw_polylines(self.drawImage, self.vertex)  # draw the polygon
                 
             if self.draw_square:
-                cv2.polylines(self.drawImage, pts=[self.squareArea_draw], isClosed=True, color=(0,0,255), thickness=3)#draw square area
+                cv2.polylines(self.drawImage, pts=[self.countInArea_draw], isClosed=True, color=(0,0,255), thickness=3)#draw square area
+                cv2.polylines(self.drawImage, pts=[self.countOutArea], isClosed=True, color=(255,0,0), thickness=3)#draw square area
+                
                 
             if self.draw_socialDistanceArea:
                 socialDistanceArea_int = np.array(self.socialDistanceArea, np.int32)
@@ -463,7 +467,8 @@ class YoloDevice:
                 predict_time_sum = 0
                 
             self.frame_id += 1
-            
+            self.lastFrame = self.frame
+           
             # self.FPS.update()
             
     #https://www.youtube.com/watch?v=brwgBf6VB0I
@@ -509,7 +514,8 @@ class YoloDevice:
         #draw people counting info into image
         info = [
         # ("Exit", totalUp),
-        ("Visitors", self.totalIn),
+        ("Total Visitors", self.totalIn),
+        ("Current", self.currentIn)
         # ("Status", status),
         # ("total lanmarks", self.detected_landmark),
         # ("good lanmarks", self.good_landmark)
@@ -523,8 +529,8 @@ class YoloDevice:
         for (i, (k, v)) in enumerate(info):
             text = "{}: {}".format(k, v)
             # print(self.H)
-            cv2.putText(image, text, (10, self.H - ((i * 20) + 100)), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 5)
-            cv2.putText(self.infoImage, text, (10, self.H - ((i * 20) + 100)), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255, 255), 5)
+            cv2.putText(image, text, (10, self.H - ((i * 50) + 100)), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 5)
+            cv2.putText(self.infoImage, text, (10, self.H - ((i * 50) + 100)), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255, 255), 5)
             
 
         for (i, (k, v)) in enumerate(info2):
@@ -534,7 +540,7 @@ class YoloDevice:
             
             
         return image
-    
+   
     
     def people_counting(self):
         
@@ -1201,21 +1207,6 @@ class YoloDevice:
             videoPath = os.path.join(videoFolder, video)
             self.cap = cv2.VideoCapture(videoPath)
             FPS = self.cap.get(cv2.CAP_PROP_FPS)
-            # print(FPS)
-            # self.tracker = CentroidTracker(max_lost=30, tracker_output_format='mot_challenge', )#reset tracker
-            # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)#yolov4 seeting
-            # self.tracker = SORT(max_lost=30, tracker_output_format='mot_challenge', iou_threshold=0.5)
-            # self.tracker = IOUTracker(max_lost=20, iou_threshold=0.3, min_detection_confidence=0.2, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
-            
-            #SortOH Tracker
-            # kalman_tracker.KalmanBoxTracker.count = 0   # Make zero ID number in the new sequence
-            # self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
-            # self.conf_trgt = 0.35
-            # self.conf_objt = 0.75
-            # self.tracker.conf_trgt = self.conf_trgt
-            # self.tracker.conf_objt = self.conf_objt
-            # print(f"thresh = {self.thresh} sortOH:age={30} conf_trgt = {self.conf_trgt }, conf_objt = {self.conf_objt}")
-            
             #deepSort tracker
             # Definition of the parameters
             max_cosine_distance = 0.8
@@ -1233,12 +1224,14 @@ class YoloDevice:
             
             
             self.totalIn = 0#reset counter
+            self.currentIn = 0
             self.lastCentroids = dict()#reset people counting info
             self.IDTracker = dict()
             
             
-            GTNumber = int(video.split('.')[0].split('_')[-1])#get the ground truth number of the video
-            groundTruth.append(GTNumber)
+            GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
+            GTNumberCurrent = int(video.split('.')[0].split('__')[-1])
+            groundTruth.append(GTNumberIn)
             self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '_output_draw.mp4')         
             
             
@@ -1246,12 +1239,14 @@ class YoloDevice:
             
             predictNumber.append(self.totalIn)
             
-            
-            errorInfo[video] = {
-                "GT":GTNumber,
-                "predict":self.totalIn
-            }
-            error.append(abs(GTNumber - self.totalIn))
+            if self.totalIn != GTNumberIn:
+                errorInfo[video] = {
+                    "GT_TotalIn":GTNumberIn,
+                    "Pre__TotalIn":self.totalIn,
+                    "GT_Current":GTNumberCurrent,
+                    "Pred_Current":self.currentIn
+                }
+                error.append(abs(GTNumberIn - self.totalIn))
             
             # print(groundTruth)
             # print(predictNumber)
