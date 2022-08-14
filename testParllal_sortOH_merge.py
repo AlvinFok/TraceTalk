@@ -9,22 +9,21 @@ def check_for_done(l):
     return False, False
 
 
-
-
 processes = list()
-N = 4#how many process running at the same time
+N = 3#how many process running at the same time
 queue = list()
 
-folder = "usedVideos/"
+folder = "oneVideo35"
 
 #generate command
-for video in os.listdir(folder):
-    queue.append(['python', 'test_deepsort.py', '--video', os.path.join(folder, video)])
+for video in sorted(os.listdir(folder)):
+    queue.append(['python', 'test_sortOH_merge.py', '--video', os.path.join(folder, video)])
 
 #log file
-file = open("testResult_deepsort.log", 'w')
+file = open("testResult_sortOH_merge.log", 'w')
 
-subprocess.run('rm videoTest_deepsort/*', shell=True)#remove old videos
+subprocess.run('rm videoTest_sortOH/*', shell=True)#remove old videos
+
 
 
 for process in queue:
@@ -40,18 +39,5 @@ for process in queue:
                 wait = False
             else:
                 time.sleep(60) # set this so the CPU does not go crazy
-
-
-if len(processes) != 0:#wait last processes
-    wait = True
-    while wait:
-        done, num = check_for_done(processes)
-
-        if done:
-            processes.pop(num)
-            wait = False
-        else:
-            time.sleep(60) # set this so the CPU does not go crazy
-
 
 file.close()

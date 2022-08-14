@@ -5,7 +5,7 @@ import argparse
 #yolov4 tiny
 yolo1 = YoloDevice(
         config_file = './cfg_person/yolov4-tiny-person.cfg',
-        weights_file = './darknet/backup/yolov4-tiny-person_final.weights',
+        weights_file = './weights/yolov4-tiny-person_final.weights',
         # config_file = './cfg_person/yolov4.cfg',
         # weights_file = 'darknet/backup/yolov4-preson_last.weights',
         data_file = './cfg_person/person.data',
