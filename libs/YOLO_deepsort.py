@@ -1307,36 +1307,30 @@ class YoloDevice:
         
         
         self.totalIn = 0#reset counter
+        self.currentIn = 0
         self.lastCentroids = dict()#reset people counting info
         self.IDTracker = dict()
         
         
-        GTNumber = int(video.split('.')[0].split('_')[-1])#get the ground truth number of the video
-        groundTruth.append(GTNumber)
-        self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '.mp4')         
+        GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
+        GTNumberCurrent = int(video.split('.')[0].split('__')[-1])
+        groundTruth.append(GTNumberIn)
+        self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '_output_draw.mp4')         
         
         
         self.start()#start video predict
         
         predictNumber.append(self.totalIn)
         
+        
         errorInfo[video] = {
-            "GT":GTNumber,
-            "predict":self.totalIn
+            "GT_TotalIn":GTNumberIn,
+            "Pre__TotalIn":self.totalIn,
+            "GT_Current":GTNumberCurrent,
+            "Pred_Current":self.currentIn
         }
-        error.append(abs(GTNumber - self.totalIn))
+        error.append(abs(GTNumberIn - self.totalIn))
         
-        # print(groundTruth)
-        # print(predictNumber)
-        
-        msg = ('-----------------------------------------\n'
-                f'Ground truth:{sum(groundTruth)}\n'
-                f'Predict:{sum(predictNumber)}\n'
-                f'Error:{sum(error)/sum(groundTruth)}\n'
-                '-----------------------------------------'
-        )
-                
-        print(msg)
         print(errorInfo)
         
     def video2Label(self, videoFolder, outputDir):

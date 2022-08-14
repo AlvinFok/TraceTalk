@@ -1,4 +1,3 @@
-from turtle import distance
 import cv2
 from matplotlib.pyplot import draw
 import numpy as np
@@ -66,7 +65,7 @@ class YoloDevice:
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
                  schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0):
         
-        tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
+        # tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
         
         
         self.video_url = video_url
@@ -531,7 +530,9 @@ class YoloDevice:
     def people_counting(self):
         
         self.__suspiciousAreaHandling()
-        self.__mergeID()
+        if 0 < len(self.detect_target) <= 5:
+            self.__mergeID()
+            self.__splitID()
         for det in self.detect_target:
             if len(det) < 5 or None in det[4]:#center not None
                 continue
@@ -611,7 +612,10 @@ class YoloDevice:
                     # self.lastCentroids[id]["countIn"] = False
                     self.lastCentroids[id]["countOut"] = True
                 
-            self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center        
+            self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center
+        
+        self.lastDetections = self.detect_target
+                    
     
     def __suspiciousAreaHandling(self):
         '''
@@ -691,6 +695,7 @@ class YoloDevice:
         #when there have a lot of people. So just keep tracking the object.
         ############################
         # suddenly appear id
+        self.flashID = []
         TRACK_FRAMES = 10  # const for amount of frames to track
         COUNTED_THRESHOLD = 8
         mode = "counted"  # ["counted", "continuous"]
@@ -714,6 +719,10 @@ class YoloDevice:
                 if mode == "counted":
                     if self.IDTracker[old_ID]["counted"] < COUNTED_THRESHOLD:  # id appeared not enough times
                         print("Remove", old_ID, self.IDTracker[old_ID])
+                        for i in self.mergedIDs:#remove flash id from merged id
+                            if old_ID in self.mergedIDs[i]:
+                                i.remove(old_ID)
+                                
                         self.totalIn -= 1
                         self.currentIn -= 1
                         
@@ -734,7 +743,7 @@ class YoloDevice:
         self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id
 
     def __mergeID(self):
-        if len(self.detect_target) < len(self.lastDetections):#number of people in this frame is more than last frame. May be two person's merged
+        if len(self.detect_target) < len(self.lastDetections):#number of people in this frame is less than last frame. May be two person's merged
             #find disappear person
             # print(f"this frame:{len(self.detect_target)}, last frame:{len(self.lastDetections)}")
             disappearAmount = len(self.lastDetections) - len(self.detect_target)#How many people disappear
@@ -757,10 +766,38 @@ class YoloDevice:
                             self.mergedIDs[j] = set([j,i])
                         else:#already merged other ID
                             self.mergedIDs[j].add(i)
-                        print("ID merged:", self.mergedIDs)
+                        # print("ID merged:", self.mergedIDs)
 
-        self.lastDetections = self.detect_target
         
+        
+    def __splitID(self):
+        if len(self.detect_target) > len(self.lastDetections) and len(self.lastDetections) != 0:#number of people in this frame is more than last frame. May be two person's merged
+            #find new person
+            thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
+            lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
+            thisFrameIDS = set(thisFrameDetections.keys())
+            lastFrameIDS = set(lastFrameDetections.keys())
+            newIDS = thisFrameIDS.difference(lastFrameIDS)
+            mergeDistanceThreshold = 50
+            
+            thisFrameIDsList = [det[3] for det in self.detect_target]
+            # print("disappear id", disappearIDS)
+            for i in newIDS:
+                x1, y1 = thisFrameDetections[i][:2]
+                for j in thisFrameIDS:
+                    if i == j:#same id
+                        continue
+                    x2, y2 = thisFrameDetections[j][:2]
+                    distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
+                    if distance < mergeDistanceThreshold:#disappear person is very close to this person. ID merged
+                        if self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1:#new id split from here
+                            spiltID = list(self.mergedIDs[j])[1]
+                            self.mergedIDs[j].remove(spiltID)#remove spilt id from set
+                            splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
+                            self.detect_target[splitIDIndex][3] = spiltID#update this frame new id to split id
+                            print(f"split ID {spiltID} from {j}")
+
+        # self.lastDetections = self.detect_target
     
     def socialDistance(self, image):
         closePairs = []
