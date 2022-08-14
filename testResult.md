@@ -301,3 +301,50 @@ sortOH with yolo center
 {'usedVideos/cam1-2022-04-16_14-00-11__43__2.mkv': {'GT_TotalIn': 43, 'Pre__TotalIn': 51, 'GT_Current': 2, 'Pred_Current': 5}}
 {'usedVideos/cam1-2022-04-16_15-00-14__35__4.mkv': {'GT_TotalIn': 35, 'Pre__TotalIn': 37, 'GT_Current': 4, 'Pred_Current': 3}}
 
+
+
+centroid
+In:90/103 out:65/90
+
+{'usedVideos/cam1-2022-04-13_15-00-26__3__2.mkv': {'GT_TotalIn': 3, 'Pre__TotalIn': 3, 'GT_Current': 2, 'Pred_Current': 2}}
+{'usedVideos/cam1-2022-04-02_15-00-07__3__1.mkv': {'GT_TotalIn': 3, 'Pre__TotalIn': 4, 'GT_Current': 1, 'Pred_Current': 4}}
+{'usedVideos/cam1-2022-05-08_14-00-40__7__0.mkv': {'GT_TotalIn': 7, 'Pre__TotalIn': 8, 'GT_Current': 0, 'Pred_Current': 0}}
+{'usedVideos/cam1-2022-04-03_16-00-24__8__4.mkv': {'GT_TotalIn': 8, 'Pre__TotalIn': 8, 'GT_Current': 4, 'Pred_Current': 3}}
+{'usedVideos/cam1-2022-05-07_14-00-27__11__0.mkv': {'GT_TotalIn': 11, 'Pre__TotalIn': 11, 'GT_Current': 0, 'Pred_Current': 0}}
+{'usedVideos/cam1-2022-04-16_16-00-17__7__-5.mkv': {'GT_TotalIn': 7, 'Pre__TotalIn': 5, 'GT_Current': -5, 'Pred_Current': -5}}
+{'usedVideos/cam1-2022-04-03_14-00-19__16__1.mkv': {'GT_TotalIn': 16, 'Pre__TotalIn': 15, 'GT_Current': 1, 'Pred_Current': 2}}
+{'usedVideos/cam1-2022-05-08_16-00-46__8__0.mkv': {'GT_TotalIn': 8, 'Pre__TotalIn': 7, 'GT_Current': 0, 'Pred_Current': -2}}
+{'usedVideos/cam1-2022-05-07_17-00-36__3__0.mkv': {'GT_TotalIn': 3, 'Pre__TotalIn': 3, 'GT_Current': 0, 'Pred_Current': 1}}
+{'usedVideos/cam1-2022-04-10_15-00-46__10__-2.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 11, 'GT_Current': -2, 'Pred_Current': 1}}
+{'usedVideos/cam1-2022-05-08_15-00-43__10__1.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 8, 'GT_Current': 1, 'Pred_Current': -3}}
+{'usedVideos/cam1-2022-05-07_16-00-33__7__2.mkv': {'GT_TotalIn': 7, 'Pre__TotalIn': 7, 'GT_Current': 2, 'Pred_Current': 1}}
+{'usedVideos/cam1-2022-04-10_14-00-44__10__-6.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 14, 'GT_Current': -6, 'Pred_Current': 3}}
+
+
+66/104 54/83
+
+{'usedVideos/cam1-2022-04-16_14-00-11__43__2.mkv': {'GT_TotalIn': 43, 'Pre__TotalIn': 67, 'GT_Current': 2, 'Pred_Current': 15}}
+{'usedVideos/cam1-2022-04-16_15-00-14__35__4.mkv': {'GT_TotalIn': 35, 'Pre__TotalIn': 47, 'GT_Current': 4, 'Pred_Current': 12}}
+{'usedVideos/cam1-2022-03-25_13-00-43__29__16.mkv': {'GT_TotalIn': 29, 'Pre__TotalIn': 28, 'GT_Current': 16, 'Pred_Current': 21}}
+
+
+deepsort
+{'usedVideos/cam1-2022-05-07_17-00-36__3__0.mkv': {'GT_TotalIn': 3, 'Pre__TotalIn': 2, 'GT_Current': 0, 'Pred_Current': 0}}
+{'usedVideos/cam1-2022-04-10_15-00-46__10__-2.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 10, 'GT_Current': -2, 'Pred_Current': -2}}
+{'usedVideos/cam1-2022-05-07_14-00-27__11__0.mkv': {'GT_TotalIn': 11, 'Pre__TotalIn': 11, 'GT_Current': 0, 'Pred_Current': 1}}
+{'usedVideos/cam1-2022-04-02_15-00-07__3__1.mkv': {'GT_TotalIn': 3, 'Pre__TotalIn': 3, 'GT_Current': 1, 'Pred_Current': 1}}
+{'usedVideos/cam1-2022-05-08_16-00-46__8__0.mkv': {'GT_TotalIn': 8, 'Pre__TotalIn': 6, 'GT_Current': 0, 'Pred_Current': 0}}
+{'usedVideos/cam1-2022-05-08_14-00-40__7__0.mkv': {'GT_TotalIn': 7, 'Pre__TotalIn': 7, 'GT_Current': 0, 'Pred_Current': 0}}
+{'usedVideos/cam1-2022-05-07_16-00-33__7__2.mkv': {'GT_TotalIn': 7, 'Pre__TotalIn': 8, 'GT_Current': 2, 'Pred_Current': 3}}
+{'usedVideos/cam1-2022-05-08_15-00-43__10__1.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 9, 'GT_Current': 1, 'Pred_Current': 0}}
+{'usedVideos/cam1-2022-04-13_15-00-26__3__2.mkv': {'GT_TotalIn': 3, 'Pre__TotalIn': 3, 'GT_Current': 2, 'Pred_Current': 2}}
+{'usedVideos/cam1-2022-04-16_16-00-17__7__-5.mkv': {'GT_TotalIn': 7, 'Pre__TotalIn': 6, 'GT_Current': -5, 'Pred_Current': -6}}
+{'usedVideos/cam1-2022-04-10_14-00-44__10__-6.mkv': {'GT_TotalIn': 10, 'Pre__TotalIn': 10, 'GT_Current': -6, 'Pred_Current': -3}}
+{'usedVideos/cam1-2022-04-03_14-00-19__16__1.mkv': {'GT_TotalIn': 16, 'Pre__TotalIn': 14, 'GT_Current': 1, 'Pred_Current': -1}}
+{'usedVideos/cam1-2022-04-03_16-00-24__8__4.mkv': {'GT_TotalIn': 8, 'Pre__TotalIn': 8, 'GT_Current': 4, 'Pred_Current': 4}}
+
+
+
+{'usedVideos/cam1-2022-03-25_13-00-43__29__16.mkv': {'GT_TotalIn': 29, 'Pre__TotalIn': 27, 'GT_Current': 16, 'Pred_Current': 20}}
+{'usedVideos/cam1-2022-04-16_14-00-11__43__2.mkv': {'GT_TotalIn': 43, 'Pre__TotalIn': 53, 'GT_Current': 2, 'Pred_Current': 8}}
+{'usedVideos/cam1-2022-04-16_15-00-14__35__4.mkv': {'GT_TotalIn': 35, 'Pre__TotalIn': 34, 'GT_Current': 4, 'Pred_Current': 0}}
