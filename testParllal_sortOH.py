@@ -13,7 +13,7 @@ processes = list()
 N = 2#how many process running at the same time
 queue = list()
 
-folder = "usedVideos"
+folder = "oneVideo35"
 
 #generate command
 for video in sorted(os.listdir(folder)):

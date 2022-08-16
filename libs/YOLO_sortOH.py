@@ -13,6 +13,7 @@ import  random
 import mediapipe as mp
 from tqdm import tqdm
 import pathlib
+import json
 
 #people counting
 from shapely.geometry import Point, Polygon
@@ -97,6 +98,7 @@ class YoloDevice:
         self.save_video = save_video # set True to save the result to video
         self.save_video_original = save_video_original # set True to save the video stream
         self.testMode = testMode#set True for test mode
+        self.IDInfo = dict()
         
         
         #load model
@@ -122,6 +124,7 @@ class YoloDevice:
         self.output_dir_video = os.path.join(output_dir, alias, "video")
         self.output_dir_img_draw = os.path.join(output_dir, alias, "img_draw")
         self.output_dir_video_draw = os.path.join(output_dir, alias, "video_draw")
+        self.output_dir_json = os.path.join(output_dir, "IDInfo.json")
         
         # Object Tracking
         self.id_storage = [] # save the trace id
@@ -425,7 +428,7 @@ class YoloDevice:
                 
             self.drawImage = self.draw_info(self.drawImage)
             
-                            
+            self.saveDetectionsWithJson(self.detect_target)
             
             # save oiginal image
             if self.save_img_original and len(self.detect_target) > 0:
@@ -1088,7 +1091,11 @@ class YoloDevice:
         # print(f"[Info] Avg FPS:{self.FPS.fps()}.")
             
         print('[Info] Stop the program: Group:{group}, alias:{alias}, URL:{url}'\
-              .format(group=self.group, alias=self.alias, url=self.video_url))      
+              .format(group=self.group, alias=self.alias, url=self.video_url))
+        
+        #save detections info to json file
+        with open(self.output_dir_json, "w") as outfile:
+            json.dump(self.IDInfo, outfile)      
         
         
     def restart(self):
@@ -1431,6 +1438,15 @@ class YoloDevice:
         testFile.close()
         
         
+    def saveDetectionsWithJson(self, detections):
+        for det in detections:
+            ID = det[3]
+            x, y, w, h = det[2]
+            data = {"frame":self.frame_id, "x":x, "y":y, "w":w, "h":h}
+            if ID in self.IDInfo:
+                self.IDInfo[ID].append(data)
+            else:
+                self.IDInfo[ID] = [data]
         
                     
             
