@@ -124,7 +124,8 @@ class YoloDevice:
         self.output_dir_video = os.path.join(output_dir, alias, "video")
         self.output_dir_img_draw = os.path.join(output_dir, alias, "img_draw")
         self.output_dir_video_draw = os.path.join(output_dir, alias, "video_draw")
-        self.output_dir_json = os.path.join(output_dir, "IDInfo.json")
+        self.output_dir_json = os.path.join(output_dir, self.alias+ "_IDInfo.json")
+        
         
         # Object Tracking
         self.id_storage = [] # save the trace id
@@ -178,7 +179,8 @@ class YoloDevice:
         # self.countInArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
         self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.countInArea_cal = np.array([[0, 1090],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1194, 476],[1187, 590],[1539, 931],[1575, 827],[1920, 1080]])
+        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1575, 827],[1920, 1080]])
+        
         self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
@@ -545,18 +547,20 @@ class YoloDevice:
             currentCentroid = Point((center_x, center_y))
             
             if self.lastCentroids.get(id, None) is None:#Don't have this id in last frame
-                
                 countIn = False
                 countOut = False
+                outIn = False
                 
-                if currentCentroid.within(countInAreaPolygon):#inside count out area that mean only can count out
+                if currentCentroid.within(countInAreaPolygon):#inside count in area that mean only can count in
                     countIn = True
-                elif currentCentroid.within(countInAreaPolygon):
-                    pass
+                elif currentCentroid.within(countOutAreaPolygon):#inside count out area but not count in area
+                    outIn = True
+                
                 self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                           "wh":(w, h),
                                           "countIn":countIn,#set id not counted
-                                          "countOut":countOut
+                                          "countOut":countOut,
+                                          "outIn":outIn
                                           }
                 
                 continue
@@ -589,6 +593,12 @@ class YoloDevice:
                 self.currentIn += 1
                 self.lastCentroids[id]["countIn"] = True
                 # self.lastCentroids[id]["countOut"] = False
+                
+            if not self.lastCentroids[id]["countIn"] and self.lastCentroids[id]["countOut"] and not self.lastCentroids[id]["outIn"]:
+                print("Out and in", id)
+                # self.totalIn += 1
+                self.currentIn += 1
+                self.lastCentroids[id]["outIn"] = True
                 
                 
             if isGetOut:
@@ -1093,6 +1103,7 @@ class YoloDevice:
         print('[Info] Stop the program: Group:{group}, alias:{alias}, URL:{url}'\
               .format(group=self.group, alias=self.alias, url=self.video_url))
         
+        # print(self.IDInfo)
         #save detections info to json file
         with open(self.output_dir_json, "w") as outfile:
             json.dump(self.IDInfo, outfile)      
@@ -1440,9 +1451,9 @@ class YoloDevice:
         
     def saveDetectionsWithJson(self, detections):
         for det in detections:
-            ID = det[3]
+            ID = int(det[3])
             x, y, w, h = det[2]
-            data = {"frame":self.frame_id, "x":x, "y":y, "w":w, "h":h}
+            data = {"frame":int(self.frame_id), "x":int(x), "y":int(y), "w":int(w), "h":int(h)}#change np.int32 to int
             if ID in self.IDInfo:
                 self.IDInfo[ID].append(data)
             else:

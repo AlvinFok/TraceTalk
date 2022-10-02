@@ -2,6 +2,10 @@ from libs.YOLO_sortOH import YoloDevice
 import argparse
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--video', type=str, required=True,  help='video file or folder')
+args = parser.parse_args()
+
 #yolov4 tiny
 yolo1 = YoloDevice(
         config_file = './cfg_person/yolov4-tiny-person.cfg',
@@ -15,7 +19,7 @@ yolo1 = YoloDevice(
         is_threading = False,
         vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
         draw_polygon=False,
-        alias="Test",
+        alias=str(args.video).split("/")[-1].split(".")[0],
         display_message = False,
         obj_trace = True,        
         save_img = False,
@@ -35,9 +39,7 @@ yolo1 = YoloDevice(
 
     
     
-parser = argparse.ArgumentParser()
-parser.add_argument('--video', type=str, required=True,  help='video file or folder')
-args = parser.parse_args()
+
 
 # yolo1.test("oneVideo43")
 # yolo1.test("videoClips")

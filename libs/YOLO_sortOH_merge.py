@@ -175,17 +175,20 @@ class YoloDevice:
         # self.countInArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
         self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.countInArea_cal = np.array([[0, 1090],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1194, 476],[1187, 590],[1539, 931],[1575, 827],[1920, 1080]])
+        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1575, 827],[1920, 1080]])
         self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
+        self.mergeIDArea = np.array([[144, 1074],[511, 365],[999, 385],[1643, 1080]])#only in this area id can merge
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
-        self.IDTracker = dict()
+        self.suspiciousAreaIDTracker = dict()
         self.IDSwith = {
                         "frame":1000,
                         "amount":0
                         }
         self.lastDetections = list()#for merge method
         self.mergedIDs = dict()
+        self.AllIDtracker = dict()
+        self.flashID = list()
         
         #social distance
         self.socialDistanceArea = np.array([ [378, 1080],[585, 345],[939, 339],[1590, 1080] ], np.float32)
@@ -530,9 +533,11 @@ class YoloDevice:
     def people_counting(self):
         
         self.__suspiciousAreaHandling()
+        self.__checkFlashIDS()
         if 0 < len(self.detect_target) <= 5:
             self.__mergeID()
             self.__splitID()
+            
         for det in self.detect_target:
             if len(det) < 5 or None in det[4]:#center not None
                 continue
@@ -547,15 +552,18 @@ class YoloDevice:
                 
                 countIn = False
                 countOut = False
+                outIn = False
                 
-                if currentCentroid.within(countInAreaPolygon):#inside count out area that mean only can count out
+                if currentCentroid.within(countInAreaPolygon):#inside count in area that mean only can count in
                     countIn = True
-                elif currentCentroid.within(countInAreaPolygon):
-                    pass
+                elif currentCentroid.within(countOutAreaPolygon):#inside count out area but not count in area
+                    outIn = True
+                
                 self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                           "wh":(w, h),
                                           "countIn":countIn,#set id not counted
-                                          "countOut":countOut
+                                          "countOut":countOut,
+                                          "outIn":outIn
                                           }
                 
                 continue
@@ -583,28 +591,36 @@ class YoloDevice:
             isGetOut = lastCentroid.within(countOutAreaPolygon) and not currentCentroid.within(countOutAreaPolygon) and not self.lastCentroids[id]["countOut"]
             
             if isGetIn:#get in and not counted
-                if self.mergedIDs.get(id, None) is not None:#this id represent multi ids
-                    print("Normal merge add:", self.mergedIDs[id])
-                    lenOfID = len(self.mergedIDs[id])
-                    self.totalIn += lenOfID
-                    self.currentIn += lenOfID
-                    for i in self.mergedIDs[id]:
-                        self.lastCentroids[i]["countIn"] = True
-                else:
-                    print("Normal add:", id)
-                    self.totalIn += 1
-                    self.currentIn += 1
-                    self.lastCentroids[id]["countIn"] = True
+                # if self.mergedIDs.get(id, None) is not None:#this id represent multi ids
+                #     print("Normal merge add:", self.mergedIDs[id])
+                #     lenOfID = len(self.mergedIDs[id])
+                #     self.totalIn += lenOfID
+                #     self.currentIn += lenOfID
+                #     for i in self.mergedIDs[id]:
+                #         self.lastCentroids[i]["countIn"] = True
+                # else:
+                print("Normal add:", id)
+                self.totalIn += 1
+                self.currentIn += 1
+                self.lastCentroids[id]["countIn"] = True
                 # self.lastCentroids[id]["countOut"] = False
+                
+                
+            if not self.lastCentroids[id]["countIn"] and self.lastCentroids[id]["countOut"] and not self.lastCentroids[id]["outIn"]:
+                print("Out and in", id)
+                # self.totalIn += 1
+                self.currentIn += 1
+                self.lastCentroids[id]["outIn"] = True
                 
                 
             if isGetOut:
                 if self.mergedIDs.get(id, None) is not None:
-                    print("Normal merge out:", self.mergedIDs[id])
-                    lenOfID = len(self.mergedIDs[id])
-                    self.currentIn -= lenOfID
+                    print("Normal merge out:", id, self.mergedIDs[id])
                     for i in self.mergedIDs[id]:
-                        self.lastCentroids[i]["countOut"] = True
+                        if not self.lastCentroids[i]["countOut"]:#id not count out
+                            self.lastCentroids[i]["countOut"] = True
+                            self.currentIn -= 1
+                            # print(f"id={i}, countOut={self.lastCentroids[i]}")
                         
                 else:
                     print("Normal out:", id)
@@ -699,26 +715,26 @@ class YoloDevice:
         TRACK_FRAMES = 10  # const for amount of frames to track
         COUNTED_THRESHOLD = 8
         mode = "counted"  # ["counted", "continuous"]
-        for old_ID in list(self.IDTracker.keys()):
-            if self.IDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
+        for old_ID in list(self.suspiciousAreaIDTracker.keys()):
+            if self.suspiciousAreaIDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
                 continue
             
             
             if old_ID in IDsInThisFrame:#if id is in this frame
                 # add counter and keep cont status if already not continuous
-                old_ID_dict = self.IDTracker[old_ID]
-                self.IDTracker[old_ID] = {"tracked": old_ID_dict["tracked"]+1, "counted": old_ID_dict["counted"]+1, "continuous": True if old_ID_dict["continuous"] else False}
-                # print(old_ID, self.IDTracker[old_ID])
+                old_ID_dict = self.suspiciousAreaIDTracker[old_ID]
+                self.suspiciousAreaIDTracker[old_ID] = {"tracked": old_ID_dict["tracked"]+1, "counted": old_ID_dict["counted"]+1, "continuous": True if old_ID_dict["continuous"] else False}
+                # print(old_ID, self.suspiciousAreaIDTracker[old_ID])
                 # print(f"IDsInCurrentSuspiciousArea = {IDsInCurrentSuspiciousArea}")
                 
             else:
-                self.IDTracker[old_ID]["tracked"] += 1
-                self.IDTracker[old_ID]["continuous"] = False
+                self.suspiciousAreaIDTracker[old_ID]["tracked"] += 1
+                self.suspiciousAreaIDTracker[old_ID]["continuous"] = False
                 
-            if self.IDTracker[old_ID]["tracked"] == TRACK_FRAMES:
+            if self.suspiciousAreaIDTracker[old_ID]["tracked"] == TRACK_FRAMES:
                 if mode == "counted":
-                    if self.IDTracker[old_ID]["counted"] < COUNTED_THRESHOLD:  # id appeared not enough times
-                        print("Remove", old_ID, self.IDTracker[old_ID])
+                    if self.suspiciousAreaIDTracker[old_ID]["counted"] < COUNTED_THRESHOLD:  # id appeared not enough times
+                        print("Remove", old_ID, self.suspiciousAreaIDTracker[old_ID])
                         for i in self.mergedIDs:#remove flash id from merged id
                             if old_ID in self.mergedIDs[i]:
                                 i.remove(old_ID)
@@ -727,49 +743,50 @@ class YoloDevice:
                         self.currentIn -= 1
                         
                 else:  # "continuous" not using
-                    if self.IDTracker[old_ID]["continuous"] == False:  # id appeared continuously
+                    if self.suspiciousAreaIDTracker[old_ID]["continuous"] == False:  # id appeared continuously
                         self.totalIn -= 1
                         self.currentIn -= 1
                         
-                # self.IDTracker.pop(old_ID)#remove id
+                # self.suspiciousAreaIDTracker.pop(old_ID)#remove id
                 
                 
         # add new and counted ID to tracker
         # new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
         for new_ID in countedID:
-            if self.IDTracker.get(new_ID, None) is None :#new id in this frame and already +1 and self.lastCentroids[new_ID]["counted"]
-                self.IDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
+            if self.suspiciousAreaIDTracker.get(new_ID, None) is None :#new id in this frame and already +1 and self.lastCentroids[new_ID]["counted"]
+                self.suspiciousAreaIDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
                 
         self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id
 
     def __mergeID(self):
         if len(self.detect_target) < len(self.lastDetections):#number of people in this frame is less than last frame. May be two person's merged
             #find disappear person
-            # print(f"this frame:{len(self.detect_target)}, last frame:{len(self.lastDetections)}")
-            disappearAmount = len(self.lastDetections) - len(self.detect_target)#How many people disappear
             thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
             lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
             thisFrameIDS = set(thisFrameDetections.keys())
             lastFrameIDS = set(lastFrameDetections.keys())
             disappearIDS = lastFrameIDS.difference(thisFrameIDS)
-            mergeDistanceThreshold = 50
+            mergeDistanceThreshold = 40
             # print("disappear id", disappearIDS)
+            mergeArea = Polygon(self.mergeIDArea)
             for i in disappearIDS:
                 x1, y1 = lastFrameDetections[i][:2]
+                id1 = Point((x1, y1))
                 for j in lastFrameIDS:
                     if i == j:#same id
                         continue
                     x2, y2 = lastFrameDetections[j][:2]
+                    id2 = Point((x2, y2))
+                    
                     distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
-                    if distance < mergeDistanceThreshold:#disappear person is very close to this person. ID merged
+                    pointInArea = id1.within(mergeArea) and id2.within(mergeArea)
+                    if distance < mergeDistanceThreshold and pointInArea:#disappear person is very close to this person and in merge id area. ID merged
                         if self.mergedIDs.get(j, None) is None:
                             self.mergedIDs[j] = set([j,i])
                         else:#already merged other ID
                             self.mergedIDs[j].add(i)
                         # print("ID merged:", self.mergedIDs)
 
-        
-        
     def __splitID(self):
         if len(self.detect_target) > len(self.lastDetections) and len(self.lastDetections) != 0:#number of people in this frame is more than last frame. May be two person's merged
             #find new person
@@ -789,15 +806,67 @@ class YoloDevice:
                         continue
                     x2, y2 = thisFrameDetections[j][:2]
                     distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
+                    
+                    # spiltID = list(self.mergedIDs[j])[1]
+    
+                    # canSpilt = distance < mergeDistanceThreshold and self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1 and spiltID != j
                     if distance < mergeDistanceThreshold:#disappear person is very close to this person. ID merged
                         if self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1:#new id split from here
                             spiltID = list(self.mergedIDs[j])[1]
+                            if spiltID == j:#same id
+                                continue
+                    # if canSpilt:
                             self.mergedIDs[j].remove(spiltID)#remove spilt id from set
                             splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
                             self.detect_target[splitIDIndex][3] = spiltID#update this frame new id to split id
-                            print(f"split ID {spiltID} from {j}")
+                            print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
 
+
+        #split flash id
+        for ID in self.mergedIDs:
+            overlapID = self.mergedIDs[ID].intersection(set(self.flashID))#if merged IDS have flash ID
+            if len(overlapID) != 0:
+                for removeID in overlapID:#remove flash ID ine by one
+                    if removeID == ID:#don't remove itself
+                        continue
+                    self.mergedIDs[ID].remove(removeID)#remove spilt id from set
+                    
+                    print(f"split flash ID {removeID} from {ID}, {self.mergedIDs[ID]}")
         # self.lastDetections = self.detect_target
+    
+    def __checkFlashIDS(self):
+        '''
+        input yolo detections
+        check flashIDs with few frames
+        '''
+        self.flashID = list()
+        #get IDS in this frame
+        IDSThisFrame = [det[3] for det in self.detect_target]
+        newIDs = set(IDSThisFrame).difference(set(self.AllIDtracker.keys()))
+        
+        TRACK_FRAMES = 15  # const for amount of frames to track
+        COUNTED_THRESHOLD = 6
+        for ID in list(self.AllIDtracker):#use list to copy the dict because will remove element in loop
+            if ID in IDSThisFrame:#ID in this frame
+                # if self.AllIDtracker.get(ID, None) is None :#new ID
+                #     self.AllIDtracker[ID] = {"tracked": 1, "counted": 1, "continuous": True}
+                self.AllIDtracker[ID]["tracked"] += 1
+            self.AllIDtracker[ID]["counted"] += 1
+            
+            if self.AllIDtracker[ID]["counted"] >= TRACK_FRAMES:
+                if self.AllIDtracker[ID]["tracked"] < COUNTED_THRESHOLD:#flash id
+                    self.flashID.append(ID)
+                    
+                del self.AllIDtracker[ID]#del ID
+
+
+
+        for new_id in newIDs:#add new id
+            self.AllIDtracker[new_id] = {"tracked": 1, "counted": 1, "continuous": True}#continuous not using
+                
+        # if len(self.flashID) > 0:
+        #     print("flash id:", self.flashID)
+    
     
     def socialDistance(self, image):
         closePairs = []
@@ -1315,7 +1384,7 @@ class YoloDevice:
             self.totalIn = 0#reset counter
             self.currentIn = 0
             self.lastCentroids = dict()#reset people counting info
-            self.IDTracker = dict()
+            self.suspiciousAreaIDTracker = dict()
             
             
             GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
@@ -1396,7 +1465,7 @@ class YoloDevice:
         self.totalIn = 0#reset counter
         self.currentIn = 0
         self.lastCentroids = dict()#reset people counting info
-        self.IDTracker = dict()
+        self.suspiciousAreaIDTracker = dict()
         
         
         GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
