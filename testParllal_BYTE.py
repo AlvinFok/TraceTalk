@@ -10,19 +10,19 @@ def check_for_done(l):
 
 
 processes = list()
-N = 16#how many process running at the same time
+N = 4#how many process running at the same time
 queue = list()
 
 folder = "usedVideos"
 
 #generate command
 for video in sorted(os.listdir(folder)):
-    queue.append(['python', 'test_sortOH_merge.py', '--video', os.path.join(folder, video)])
+    queue.append(['python', 'test_BYTE.py', '--video', os.path.join(folder, video)])
 
 #log file
-file = open("testResult_sortOH_merge.log", 'w')
+file = open("testResult_BYTE.log", 'w')
 
-subprocess.run('rm videoTest_sortOH/*', shell=True)#remove old videos
+subprocess.run('rm videoTest_BYTE/*', shell=True)#remove old videos
 
 
 

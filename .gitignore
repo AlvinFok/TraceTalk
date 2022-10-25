@@ -17,6 +17,11 @@ log.txt
 /darknet
 /deepsort
 /sort_oh
+
+#
+*.mkv*
+*.jpg
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

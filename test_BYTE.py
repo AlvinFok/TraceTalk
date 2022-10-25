@@ -1,4 +1,4 @@
-from libs.YOLO_sortOH_merge import YoloDevice
+from libs.YOLO_BYTE import YoloDevice
 import argparse
 from pathlib import Path
 
@@ -15,7 +15,7 @@ yolo1 = YoloDevice(
         # weights_file = 'darknet/backup/yolov4-preson_last.weights',
         data_file = './cfg_person/person.data',
         thresh = 0.5,
-        output_dir = 'videoTest_sortOH',
+        output_dir = 'videoTest_BYTE',
         video_url = './0325.mp4',
         is_threading = False,
         vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],

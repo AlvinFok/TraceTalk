@@ -1103,7 +1103,6 @@ class YoloDevice:
         print('[Info] Stop the program: Group:{group}, alias:{alias}, URL:{url}'\
               .format(group=self.group, alias=self.alias, url=self.video_url))
         
-        # print(self.IDInfo)
         #save detections info to json file
         with open(self.output_dir_json, "w") as outfile:
             json.dump(self.IDInfo, outfile)      

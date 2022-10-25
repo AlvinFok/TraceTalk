@@ -21,29 +21,13 @@ from shapely.geometry import Point, Polygon
 #FPS
 from imutils.video import FPS
 
-#SortOH tracker
-sys.path.append("..")
-from LineNotify import line_notify
-from sort_oh.libs import visualization
-from sort_oh.libs import tracker as SortOHTracker
-from sort_oh.libs import kalman_tracker
 
-# deep sort imports
-from deepsort.deep_sort import preprocessing, nn_matching
-from deepsort.deep_sort.detection import Detection as DeepSortDetection
-from deepsort.deep_sort.tracker import Tracker as DeepSortTracker
-from deepsort.tools import generate_detections as gdet
+#BYTE tracker
+# from yolox.tracker.byte_tracker import BYTETracker
+from ByteTrack.yolox.tracker.byte_tracker import BYTETracker
 
-import tensorflow as tf
-
-gpus = tf.config.experimental.list_physical_devices('GPU')
-for gpu in gpus:
-    tf.config.experimental.set_memory_growth(gpu, True)
-
-
-# motpy
 from motpy.testing_viz import draw_detection, draw_track
-from motpy import Detection, MultiObjectTracker
+
 
 # multiobjecttracker
 sys.path.insert(1, 'multi-object-tracker')
@@ -56,6 +40,14 @@ from libs.utils import *
 from darknet import darknet
 
 
+#config of BYTE tracker
+class Arg():
+    def __init__(self):
+        self.track_thresh = 0.6
+        self.track_buffer = 30
+        self.match_thresh = 0.9
+        # self.min-box-area = 100
+        self.mot20 = False
 
 
 class YoloDevice:
@@ -66,7 +58,7 @@ class YoloDevice:
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
                  schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0):
         
-        # tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
+
         
         
         self.video_url = video_url
@@ -127,26 +119,28 @@ class YoloDevice:
         
         # Object Tracking
         self.id_storage = [] # save the trace id
-        self.tracker_motpy = MultiObjectTracker(
-                    dt=1 / 30,
-                    tracker_kwargs={'max_staleness': 5},
-                    model_spec={'order_pos': 1, 'dim_pos': 2,
-                                'order_size': 0, 'dim_size': 2,
-                                'q_var_pos': 5000., 'r_var_pos': 0.1},
-#                     matching_fn_kwargs={'min_iou': 0.25,
-#                                     'multi_match_min_iou': 0.93}
-                    )     
+#         self.tracker_motpy = MultiObjectTracker(
+#                     dt=1 / 30,
+#                     tracker_kwargs={'max_staleness': 5},
+#                     model_spec={'order_pos': 1, 'dim_pos': 2,
+#                                 'order_size': 0, 'dim_size': 2,
+#                                 'q_var_pos': 5000., 'r_var_pos': 0.1},
+# #                     matching_fn_kwargs={'min_iou': 0.25,
+# #                                     'multi_match_min_iou': 0.93}
+#                     )     
         # self.tracker = CentroidTracker(max_lost=7, tracker_output_format='mot_challenge', )
         self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)
 #         self.tracker = SORT(max_lost=3, tracker_output_format='mot_challenge', iou_threshold=0.1)
         # self.tracker = IOUTracker(max_lost=120, iou_threshold=0.4, min_detection_confidence=0.4, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
         
+        args = Arg()
+        self.tracker = BYTETracker(args)
         #SortOH Tracker
-        self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
-        self.conf_trgt = 0.35
-        self.conf_objt = 0.75
-        self.tracker.conf_trgt = self.conf_trgt
-        self.tracker.conf_objt = self.conf_objt
+        # self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
+        # self.conf_trgt = 0.35
+        # self.conf_objt = 0.75
+        # self.tracker.conf_trgt = self.conf_trgt
+        # self.tracker.conf_objt = self.conf_objt
         
         
         self.bbox_colors = {}
@@ -375,7 +369,7 @@ class YoloDevice:
             darknet.copy_image_from_bytes(darknet_image, frame_rgb.tobytes())
             
             predict_time = time.time() # get start predict time
-            detections = darknet.detect_image(self.network, self.class_names, darknet_image, thresh=self.thresh)
+            detections = darknet.detect_image(self.network, self.class_names, darknet_image, thresh=self.thresh)#[className, score, (cx, cy, W, H)]
             predict_time_sum +=  (time.time() - predict_time) # add sum predict time
             
 #             darknet.print_detections(detections, True) # print detection
@@ -388,7 +382,7 @@ class YoloDevice:
             
             if self.obj_trace and len(self.detect_target) > 0: # draw the image with object tracking           
                 # self.drawImage = self.object_tracker(self.drawImage)
-                self.drawImage = self.object_tracker_sort_oh(self.drawImage)
+                self.drawImage = self.object_tracker_BYTE(self.drawImage)
                 # self.drawImage = self.object_tracker_deep_sort(frame_rgb)
                 # self.drawImage = self.object_tracker_motpy(frame_rgb)
             elif self.draw_bbox:
@@ -999,204 +993,40 @@ class YoloDevice:
                 
         return drawImage
     
-    # https://github.com/wmuron/motpy.git
-    def object_tracker_motpy(self, image):           
-        boxes = []
-        scores = []
-        class_ids = []
+    def object_tracker_BYTE(self, image):
+        #[cx, cy, W, H, score] -> [x1, y1, x2, y2, score]
+        dets = list()
+        for det in self.detect_target:
+            score = int(float(det[1]))
+            cx, cy, W, H = det[2]
+            x1 = int(cx - W / 2)
+            y1 = int(cy - H / 2)
+            x2 = x1 + W
+            y2 = y1 + H
+            dets.append([x1, y1, x2, y2, score])
         
-        # convert to the trace format
-        for r in self.detect_target:
-            boxes.append( darknet.bbox2points(r[2]) )
-            scores.append( float(r[1]) )
-            class_ids.append(r[0])    
-            
-        self.tracker_motpy.step(detections=[Detection(box=b, score=s, class_id=l) for b, s, l in zip(boxes, scores, class_ids)])
-        tracks = self.tracker_motpy.active_tracks(min_steps_alive=3)
-        
-        self.detect_target = [] # re-assigned each bbox
-        for track in tracks:
-            # append the track.id to id_storage
-            if track.id not in self.id_storage:
-                self.id_storage.append(track.id)
-                
-            id_index = self.id_storage.index(track.id) #  the order of elements in the python list is persistent                
-            self.detect_target.append((track.class_id, track.score, track.box, id_index)) # put the result to detect_target            
-            draw_track(image, track, thickness=2, text_at_bottom=True, text_verbose=0) # draw the bbox
-            
-             # put the id to the image
-            txt = track.class_id + " "+ str(track.score) +" ID=" + str(id_index)
-            cv2.putText(image, txt, (int(track.box[0]), int(track.box[1])-7) ,
-                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                fontScale=0.5, color=(255,255,0))
-            
-        return image
-    
-    
-    # https://github.com/adipandas/multi-object-tracker.git
-    def object_tracker(self, image):
-        boxes = []
-        confidence = []
-        class_ids = []
-        
-        self.bboxImage = np.zeros((image.shape[0], image.shape[1], 4))
-        
-        # convert to the trace format
-        for r in self.detect_target:
-            center_x, center_y, width, height = r[2]
-            left, top, right, bottom = darknet.bbox2points(r[2])
-            boxes.append([left, top, width, height])
-            confidence.append(int(float(r[1])))
-            class_ids.append(int(self.target_classes.index(r[0])))
-#             cv2.rectangle(image, (int(left), int(top)), (int(left+width), int(top+height)), (0,0,255), 2) # draw the bbox   
-        output_tracks = self.tracker.update(np.array(boxes), np.array(confidence), np.array(class_ids))
-        
-        self.detect_target = [] # re-assigned each bbox
-        for track in output_tracks:
-            frame, idx, bb_left, bb_top, bb_width, bb_height, confidence, x, y, z = track
-            assert len(track) == 10
-#             print(track)
-            bbox = (bb_left+bb_width/2, bb_top+bb_height/2,  bb_width, bb_height)
-            self.detect_target.append((self.target_classes[0], confidence, bbox, idx)) # put the result to detect_target 
-                        
-            # assign each id with a color
-            if self.bbox_colors.get(idx) == None:
-                self.bbox_colors[idx] = (random.randint(0, 255),
-                                        random.randint(0, 255),
-                                        random.randint(0, 255))
-                
-            if self.draw_bbox:
-                cv2.rectangle(image, (int(bb_left), int(bb_top)), (int(bb_left+bb_width), int(bb_top+bb_height)), self.bbox_colors[idx], 2) # draw the bbox
-                #draw web streaming image
-                cv2.rectangle(self.bboxImage, (int(bb_left), int(bb_top)), (int(bb_left+bb_width), int(bb_top+bb_height)), (*self.bbox_colors[idx], 255), 2) # draw the bbox
-                
-                
-            image = draw_tracks(image, output_tracks) # draw the id
-            
-            # put the score and class to the image
-            txt = str(r[0]) + " "+ str(confidence)
-            cv2.putText(image, txt, (int(bb_left), int(bb_top-7)) ,
-                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                fontScale=0.5, color=self.bbox_colors[idx])
-            
-        return image
-        
-    #https://github.com/mhnasseri/sort_oh
-    def object_tracker_sort_oh(self, image):
-        det = []
-        for i in self.detect_target:
-            conf = float(i[1])
-            # print(i)
-            if conf < 0.3:# remove dets with low confidence
-                continue
-            cx, cy, w, h = i[2]
-            
-            #convert [cx,cy,w,h] to [x1,y1,x2,y2]
-            x1, y1 = (cx - w/2), (cy - h/2)
-            x2, y2 = (cx + w/2), (cy + h/2)
-            det.append([x1, y1, x2, y2, conf])#[[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
-            
-        
-        
-        trackers, unmatched_trckr, unmatched_gts = self.tracker.update(np.array(det), [])#no ground truth
-        
+        dets = np.array(dets)
+        online_targets = self.tracker.update(dets, [1080, 1920], [800, 1440])
         detWithID = []
-        #draw bbox and
-        for t in trackers:
-            t = np.array(t, dtype=np.int32)
-            id = t[4]
+        for track in online_targets:
+            t, l, w, h = track.tlwh
+            id = track.track_id
+            
+            cx = int( (t + w / 2) / 800 * 1080 )
+            cy = int( (l + h / 2) / 1440 * 1920 )
             # assign each id with a color
             if self.bbox_colors.get(id) == None:
                 self.bbox_colors[id] = (random.randint(0, 255),
                                         random.randint(0, 255),
                                         random.randint(0, 255))
-                
-            cv2.rectangle(image, (t[0], t[1]), (t[2], t[3]), self.bbox_colors[id], 3)
-            w, h = (t[2] - t[0]), (t[3] - t[1])
-            cx, cy = int(t[0] + w/2), int(t[1] + h/2)
-            detWithID.append(['person', -1, [cx, cy, w, h], id])
-            
-             # put the id to the image
+            cv2.rectangle(image, (int(t), int(l)), (int(t + w), int(l + h)), self.bbox_colors[id], 3)
             cv2.putText(image, str(id), (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
             
-        self.detect_target = detWithID#update detection [class, score, [cx, cy, w, h], id]
-        # print(self.detect_target)
-        
-        return image
-            
-    # https://github.com/theAIGuysCode/yolov4-deepsort
-    def object_tracker_deep_sort(self, frame):
-        
-        #  # Definition of the parameters
-        # max_cosine_distance = 0.4
-        # nn_budget = None
-        # nms_max_overlap = 1.0
-        
-        # # initialize deep sort
-        # model_filename = 'deepsort/model_data/mars-small128.pb'
-        # encoder = gdet.create_box_encoder(model_filename, batch_size=1)
-        # # calculate cosine distance metric
-        # metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
-        # # initialize tracker
-        # tracker = DeepSortTracker(metric)
-        
-        bboxes = []
-        detections = np.array(self.detect_target)
-        try:
-            dets = detections[:, 2]#get bbox only
-        except:#no detection
-            # print(detections)
-            return
-        
-        for cx, cy, w, h in dets:
-            x = cx - w//2
-            y = cy - h//2
-            bboxes.append([x,y,w,h])
-            
-        scores = detections[:, 1]
-        class_names = detections[:, 0]
-            
-        features = self.encoder(frame, bboxes)#use rgb image to extract features
-        detections = [DeepSortDetection(bbox, score, class_name, feature) for bbox, score, class_name, feature in zip(bboxes, scores, class_names, features)]
-        
-         # Call the tracker
-        self.tracker.predict()
-        self.tracker.update(detections)
+            # save results
+            detWithID.append(['person', track.score, [cx, cy, w, h], id])
 
-        drawImage = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        detectionsWithID = []
-        # update tracks
-        for track in self.tracker.tracks:
-            if not track.is_confirmed() or track.time_since_update > 1:
-                continue 
-            bbox = track.to_tlbr()
-            x1, y1, x2, y2 = bbox
-            class_name = track.get_class()
-            id = track.track_id
-            w = x2 - x1
-            h = y2 - y1
-            cx = x1 + w // 2
-            cy = y1 + h // 2
-            detectionsWithID.append(['person', -1, [cx, cy, w, h], id])
-            # assign each id with a color
-            if self.bbox_colors.get(id) == None:
-                self.bbox_colors[id] = (random.randint(0, 255),
-                                        random.randint(0, 255),
-                                        random.randint(0, 255))
-            color = self.bbox_colors[id]
-            # draw bbox on screen(bgr image)
-            cv2.rectangle(drawImage, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
-            # cv2.rectangle(drawImage, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+(len(class_name)+len(str(track.track_id)))*17, int(bbox[1])), color, -1)
-            # cv2.putText(drawImage, class_name + "-" + str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
-            cv2.rectangle(drawImage, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+len(str(track.track_id))*17, int(bbox[1])), color, -1)
-            cv2.putText(drawImage, str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
-            
-        
-        self.detect_target = detectionsWithID
-        # print(self.detect_target)
-        
-        return drawImage
-        
+        self.detect_target = detWithID
+        return image
         
     def set_listener(self, on_detection):
         self.detection_listener = on_detection
@@ -1385,14 +1215,10 @@ class YoloDevice:
             # self.tracker = SORT(max_lost=30, tracker_output_format='mot_challenge', iou_threshold=0.5)
             # self.tracker = IOUTracker(max_lost=20, iou_threshold=0.3, min_detection_confidence=0.2, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
             
-            #SortOH Tracker
-            kalman_tracker.KalmanBoxTracker.count = 0   # Make zero ID number in the new sequence
-            self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
-            self.conf_trgt = 0.35
-            self.conf_objt = 0.75
-            self.tracker.conf_trgt = self.conf_trgt
-            self.tracker.conf_objt = self.conf_objt
-            print(f"thresh = {self.thresh} sortOH:age={30} conf_trgt = {self.conf_trgt }, conf_objt = {self.conf_objt}")
+            #BYTE Tracker
+            args = Arg()
+            self.tracker = BYTETracker(args)
+            print(f"thresh = {self.thresh} BYTE:age={30}")
             
             self.totalIn = 0#reset counter
             self.currentIn = 0
@@ -1445,34 +1271,9 @@ class YoloDevice:
         self.cap = cv2.VideoCapture(video)
         FPS = self.cap.get(cv2.CAP_PROP_FPS)
         # print(FPS)
-        # self.tracker = CentroidTracker(max_lost=30, tracker_output_format='mot_challenge', )#reset tracker
-        # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)#yolov4 seeting
-        # self.tracker = SORT(max_lost=30, tracker_output_format='mot_challenge', iou_threshold=0.5)
-        # self.tracker = IOUTracker(max_lost=20, iou_threshold=0.3, min_detection_confidence=0.2, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
-        
-        #SortOH Tracker
-        kalman_tracker.KalmanBoxTracker.count = 0   # Make zero ID number in the new sequence
-        self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
-        self.conf_trgt = 0.35
-        self.conf_objt = 0.75
-        self.tracker.conf_trgt = self.conf_trgt
-        self.tracker.conf_objt = self.conf_objt
-        print(f"thresh = {self.thresh} sortOH:age={30} conf_trgt = {self.conf_trgt }, conf_objt = {self.conf_objt}")
-        
-        #deepSort tracker
-        # Definition of the parameters
-        # max_cosine_distance = 0.8
-        # nn_budget = None
-        # nms_max_overlap = 1.0
-        
-        # # initialize deep sort
-        # model_filename = 'deepsort/model_data/mars-small128.pb'
-        # self.encoder = gdet.create_box_encoder(model_filename, batch_size=1)
-        # # calculate cosine distance metric
-        # metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
-        # # initialize tracker
-        # self.tracker = DeepSortTracker(metric, max_age=30)
-        # print(f"thresh = {self.thresh} DeepSort:age={30} max_cosine_distance = {max_cosine_distance }, nn_budget = {nn_budget}")
+        args = Arg()
+        self.tracker = BYTETracker(args)
+        print(f"thresh = {self.thresh} BYTE:age={30}")
         
         
         self.totalIn = 0#reset counter
