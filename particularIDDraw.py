@@ -17,10 +17,10 @@ from pathlib import Path
 #     1:[{"frame":2, "x":3, "y":4, "w":5, "h":6}, {"frame":3, "x":4, "y":5, "w":6, "h":7}]
 # }
 
-outputDir = Path("./videoTest_sortOH/")
-videoFile = Path("./usedVideos/cam1-2022-04-16_14-00-11__47__2.mkv")
-jsonFile = Path("./videoTest_sortOH/Test_IDInfo.json")
-drawID = [108, 129, 133, 135, 146, 151, 192, 195]
+outputDir = Path("./videoTest_BYTE/")
+videoFile = Path("./usedVideos/cam1-2022-04-16_15-00-14__35__2.mkv")
+jsonFile = Path("./videoTest_BYTE/cam1-2022-04-16_15-00-14__35__2.mkv_IDInfo.json")
+drawID = [17, 32]
 
 IDInfo = None
 frameID = 0
@@ -51,18 +51,7 @@ def main():
             break
         
         
-        
-        if len(IDInfo['133']) > 0 and frameID == IDInfo['133'][0]["frame"] and len(IDInfo['135']) > 0 and frameID == IDInfo['135'][0]["frame"]:
-            cx, cy, w, h = IDInfo['135'][0]["x"], IDInfo['135'][0]["y"], IDInfo['135'][0]["w"], IDInfo['135'][0]["h"]
-            x1, y1 = int(cx - w/2), int(cy - h/2)
-            x2, y2 = int(cx + w/2), int(cy + h/2)
-            idColor = getColor('135')
-            cv2.rectangle(frame, (x1, y1), (x2, y2), idColor, 3)
-            cv2.putText(frame, '135', (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
-            cv2.imwrite(str(outputDir / "frames" / videoFile.name.replace(videoFile.suffix, f"_rewrite_{frameID}.jpg")), frame)
-            
-            del IDInfo['133'][0]
-            del IDInfo['135'][0]
+
             
             
         # print(f"{frameID}")

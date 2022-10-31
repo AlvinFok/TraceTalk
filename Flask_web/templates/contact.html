@@ -1,0 +1,214 @@
+<html>
+
+    <head>
+      <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500&family=Open+Sans:ital,wght@1,600&display=swap" rel="stylesheet">
+
+      <script src="https://kit.fontawesome.com/8fe09599eb.js" crossorigin="anonymous"></script>
+      <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+      <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+      <title>YOLOTalk</title>
+
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+    </head>
+    <style>
+                /*    ______________ 字體設定 ______________   */
+        h1,h2,h3,h4,h5,h6{
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        p,a,input,label,textarea,span,ul,li{
+            font-family: 'Open Sans TC', sans-serif;
+        }
+        /*    ______________ 照片設定  不要爆掉 ______________   */
+        img{
+            max-width: 100%;
+        }
+        /*    ______________ 按鈕設定 ______________   */
+        .btn{
+            background-color: #99b0c7;
+            color: white;
+            padding: 9px 26px;
+            border-radius: 20px;
+        }
+        /*    ______________ 大看板上的選單 ______________   */
+        nav img{
+            width: 200px;
+        }
+        header li{
+            margin: 0 15px;
+            font-weight: bold;
+            font-size: 22px;
+        }
+        /*    ______________ 大看板 ______________   */
+        #intro .jumbotron {
+            padding: 80px 0px;
+            height:100vh;
+        }
+        #intro .container{
+            position: relative;     
+            top: 30%;
+            transform: translateY(-50%);
+        }
+        /*    ______________ 大看板 > 創作團隊 ______________   */
+        #intro .container h3{
+            font-size: 50px;
+            margin-bottom: 80px;
+        }
+        /*    ______________ 大看板 > 創作團隊 > 成員文字設定 ______________   */
+        #intro .innertext{
+            text-align: center;
+        }
+        #intro h5{
+            font-size: 16px;
+            background-color: rgba(191, 171, 230, 0.4);
+            padding: 5px 5px;
+            border-radius: 25px;
+            margin-top: 10px;
+            margin-left: 70px;
+            margin-right: 70px;
+        }
+        /*    ______________ 大看板 > 創作團隊 > 外框框 ______________   */
+        #intro .outer{
+            padding: 2px;
+            background-color: white;
+            box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.08);  
+        }
+        /*    ______________ 成員介紹 > 外框框 > 上方照片 ______________   */
+        #intro .upper{
+            background-color: rgba(255, 255, 255, 0.9);
+            position: relative;
+        }
+        /*    ______________ 成員介紹 > 外框框 > 下方框框 ______________   */
+        #intro  .lower {
+            font-size: 0.9rem;
+            margin: 10px 0px;
+            text-align: left;
+        }
+        /*    ______________ 成員介紹 > 外框框 > 下方框框 > 裡面的小縮圖 ______________   */
+        #intro  .lower i{
+            margin-left: 5px;
+            margin-right: 5px;
+        }
+    </style>
+    <body>
+<!-- __________________________________________ 上方列表 __________________________________________   -->
+        <header>
+            <div class="Container">
+                <nav class="navbar navbar-expand-lg navbar-light ">
+                    <a class="navbar-brand" href="#">
+                        <img src="static\logo.png">
+                    </a>
+                    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="navbar-nav mr-auto">
+                            <li class="nav-item">
+                                <a class="nav-link" href="\">主畫面</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="\streaming">監視器設定</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                  USER 相關
+                                </a>
+                                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                    <a class="dropdown-item" href="#">USER 清單</a>
+                                    <a class="dropdown-item" href="#">尚未想到</a>
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item" href="#">尚未想到</a>
+                                </div>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link " href="\contact"  >聯絡我們</a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </header>
+<!-- __________________________________________ 大看板 __________________________________________   -->
+        <section id="intro">
+            <div class="jumbotron"> <!-- 大看板，-->
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-12  text-center">
+                            <h3>創作團隊</h3>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <div class="outer" >
+                                <div class="upper">
+                                    <img src="static\linyipin.jpg " height="210px">
+                                    <div class="innertext">
+                                        <h5> 林一平教授 </h5>
+                                    </div>
+                                </div>
+                                <div class="lower">
+                                    <span><i class="fa-solid fa-graduation-cap"></i>國立陽明交通大學終身講座教授</span>
+                                    <br>
+                                    <span> <i class="fa-solid fa-envelope"></i> Email:liny@nctu.edu.tw </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 text-center">
+                            <div class="outer">
+                                <div class="upper">
+                                    <img src="static\pro.jpg"height="210px">
+                                    <div class="innertext">
+                                        <h5> 林勻蔚教授 </h5>
+                                    </div>
+                                </div>
+                                <div class="lower">
+                                    <span><i class="fa-solid fa-graduation-cap"></i>國立陽明交通大學 助理教授</span>
+                                    <br>
+                                    <span> <i class="fa-solid fa-envelope"></i> Email:jyneda@nctu.edu.tw </span>
+                                </div>
+                            </div>
+                        </div> 
+                        <div class="col-md-3 text-center">
+                            <div class="outer" >
+                                <div class="upper">
+                                    <img src="static\學長.png" height="210px">
+                                    <div class="innertext">
+                                        <h5> 洪健菖學長 </h5>
+                                    </div>
+                                </div>
+                                <div class="lower">
+                                    <span><i class="fa-solid fa-graduation-cap"></i>國立陽明交通大學 研究生</span>
+                                    <br>
+                                    <span> <i class="fa-solid fa-envelope"></i> Email: jim93073@gmail.com </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                        <div class="outer" >
+                            <div class="upper">
+                                <img src="static\me.jpg" height="210px">
+                                <div class="innertext">
+                                    <h5> 林民桐 </h5>
+                                </div>
+                            </div>
+                            <div class="lower">
+                                <span><i class="fa-solid fa-graduation-cap"></i>國立陽明交通大學 研究生</span>
+                                <br>
+                                <span> <i class="fa-solid fa-envelope"></i> Email:apple895263@gmail.com </span>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+    </body>
+</html>

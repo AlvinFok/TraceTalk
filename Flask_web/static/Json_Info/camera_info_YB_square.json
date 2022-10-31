@@ -1,0 +1,29 @@
+{
+    "alias":"square",
+
+    "video_url":"../../../oneVideoTest/cam1-2022-04-03_14-00-19__16__1.mkv",
+
+    "add_time":"Oct 20 21:39:43",
+
+    "fence":{
+        "\u96fb\u8cc7\u5927\u6a13\u9580\u53e3":{
+            "vertex":"[0, 1080,0, 764,544, 225,1014, 229,1920, 809,1920, 1080]",
+
+            "Group":"-",
+
+            "Alarm_Level":"General",
+
+            "Note":" - ",
+
+            "Sensitivity":"0.5",
+
+            "Schedule":{
+                "1":{
+                    "Start_time":"--:--",
+
+                    "End_time":"--:--"
+                }
+            }
+        }
+    }
+}

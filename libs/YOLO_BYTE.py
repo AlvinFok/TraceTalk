@@ -559,6 +559,7 @@ class YoloDevice:
                     countIn = True
                 elif currentCentroid.within(countOutAreaPolygon):#inside count out area but not count in area
                     outIn = True
+                    countOut = True
                 
                 self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                           "wh":(w, h),
@@ -604,7 +605,7 @@ class YoloDevice:
                 self.totalIn += 1
                 self.currentIn += 1
                 self.lastCentroids[id]["countIn"] = True
-                # self.lastCentroids[id]["countOut"] = False
+                self.lastCentroids[id]["countOut"] = False
                 
                 
             if not self.lastCentroids[id]["countIn"] and self.lastCentroids[id]["countOut"] and not self.lastCentroids[id]["outIn"]:
@@ -626,8 +627,9 @@ class YoloDevice:
                 else:
                     print("Normal out:", id)
                     self.currentIn -= 1
-                    # self.lastCentroids[id]["countIn"] = False
-                    self.lastCentroids[id]["countOut"] = True
+                    
+                self.lastCentroids[id]["countIn"] = False
+                # self.lastCentroids[id]["countOut"] = True
                 
             self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center
         
@@ -677,7 +679,8 @@ class YoloDevice:
                     self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                               "wh":(w,h),
                                           "countIn":True,
-                                          "countOut":False
+                                          "countOut":False,
+                                          "outIn":False
                                           }#set id not counted
                 
                     ############################
@@ -740,7 +743,7 @@ class YoloDevice:
                         print("Remove", old_ID, self.suspiciousAreaIDTracker[old_ID])
                         for i in self.mergedIDs:#remove flash id from merged id
                             if old_ID in self.mergedIDs[i]:
-                                i.remove(old_ID)
+                                self.mergedIDs[i].remove(old_ID)
                                 
                         self.totalIn -= 1
                         self.currentIn -= 1
@@ -769,7 +772,7 @@ class YoloDevice:
             thisFrameIDS = set(thisFrameDetections.keys())
             lastFrameIDS = set(lastFrameDetections.keys())
             disappearIDS = lastFrameIDS.difference(thisFrameIDS)
-            mergeDistanceThreshold = 80
+            mergeDistanceThreshold = 50
             # print("disappear id", disappearIDS)
             mergeArea = Polygon(self.mergeIDArea)
             for i in disappearIDS:
@@ -798,7 +801,7 @@ class YoloDevice:
             thisFrameIDS = set(thisFrameDetections.keys())
             lastFrameIDS = set(lastFrameDetections.keys())
             newIDS = thisFrameIDS.difference(lastFrameIDS)
-            mergeDistanceThreshold = 50
+            mergeDistanceThreshold = 80
             
             thisFrameIDsList = [det[3] for det in self.detect_target]
             # print("disappear id", disappearIDS)
@@ -1006,14 +1009,18 @@ class YoloDevice:
             dets.append([x1, y1, x2, y2, score])
         
         dets = np.array(dets)
-        online_targets = self.tracker.update(dets, [1080, 1920], [800, 1440])
+        online_targets = self.tracker.update(dets, [1080, 1920], [1080, 1920])
         detWithID = []
         for track in online_targets:
             t, l, w, h = track.tlwh
             id = track.track_id
             
-            cx = int( (t + w / 2) / 800 * 1080 )
-            cy = int( (l + h / 2) / 1440 * 1920 )
+            # t = t / 1440 * 1920
+            # l = l / 800 * 1080
+            # cx = int( (t + w / 2) / 1440 * 1920 )
+            # cy = int( (l + h / 2) / 800 * 1080 )
+            cx = int( (t + w / 2))
+            cy = int( (l + h / 2))
             # assign each id with a color
             if self.bbox_colors.get(id) == None:
                 self.bbox_colors[id] = (random.randint(0, 255),
