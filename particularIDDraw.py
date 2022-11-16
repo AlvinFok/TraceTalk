@@ -18,15 +18,18 @@ from pathlib import Path
 # }
 
 outputDir = Path("./videoTest_BYTE/")
-videoFile = Path("./usedVideos/cam1-2022-04-16_15-00-14__35__2.mkv")
-jsonFile = Path("./videoTest_BYTE/cam1-2022-04-16_15-00-14__35__2.mkv_IDInfo.json")
-drawID = [17, 32]
+framesDir = outputDir / "frames/"
+framesDir.mkdir(parents=True, exist_ok=True)
+videoFile = Path("./usedVideos/cam1-2022-04-16_14-00-11__47__2.mkv")
+jsonFile = Path("./videoTest_BYTE/cam1-2022-04-16_14-00-11__47__2.mkv_IDInfo.json")
+drawID = [205, 274, 305, 352, 378, 386, 370, 408]
 
 IDInfo = None
 frameID = 0
 color = dict()
 skipFrame = 2
 saveFrame = True
+
 
 print("Reading Json File.")
 with open(jsonFile) as d:

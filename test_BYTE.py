@@ -14,7 +14,7 @@ yolo1 = YoloDevice(
         # config_file = './cfg_person/yolov4.cfg',
         # weights_file = 'darknet/backup/yolov4-preson_last.weights',
         data_file = './cfg_person/person.data',
-        thresh = 0.5,
+        thresh = 0.4,
         output_dir = 'videoTest_BYTE',
         video_url = './0325.mp4',
         is_threading = False,
@@ -35,7 +35,7 @@ yolo1 = YoloDevice(
         draw_socialDistanceInfo=True,
         testMode=True,
         repeat=False,
-        gpu=0,
+        gpu=1,
     )    
 
     

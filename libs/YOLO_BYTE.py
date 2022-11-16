@@ -171,10 +171,10 @@ class YoloDevice:
         # self.countInArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
         self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.countInArea_cal = np.array([[0, 1090],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1575, 827],[1920, 1080]])
+        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1609, 578], [1980, 728], [1980, 1080]])
         self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
         self.suspiciousArea_L = np.array([[1080, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])
-        self.mergeIDArea = np.array([[144, 1074],[511, 365],[999, 385],[1643, 1080]])#only in this area id can merge
+        self.mergeIDArea = np.array([[144, 1074],[511, 465],[1099, 485],[1643, 1080]])#only in this area id can merge
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.suspiciousAreaIDTracker = dict()
@@ -380,13 +380,13 @@ class YoloDevice:
               
 
             
-            if self.obj_trace and len(self.detect_target) > 0: # draw the image with object tracking           
+            # if self.obj_trace and len(self.detect_target) > 0: # draw the image with object tracking           
                 # self.drawImage = self.object_tracker(self.drawImage)
-                self.drawImage = self.object_tracker_BYTE(self.drawImage)
+            self.drawImage = self.object_tracker_BYTE(self.drawImage)
                 # self.drawImage = self.object_tracker_deep_sort(frame_rgb)
                 # self.drawImage = self.object_tracker_motpy(frame_rgb)
-            elif self.draw_bbox:
-                self.drawImage = draw_boxes(detections, self.drawImage, self.class_colors, self.target_classes, self.vertex)
+            # elif self.draw_bbox:
+            #     self.drawImage = draw_boxes(detections, self.drawImage, self.class_colors, self.target_classes, self.vertex)
             
             save_path_img = None
             save_path_img_orig = None
@@ -560,6 +560,10 @@ class YoloDevice:
                 elif currentCentroid.within(countOutAreaPolygon):#inside count out area but not count in area
                     outIn = True
                     countOut = True
+                else:#not in count in area and count out area
+                    countOut = True
+                    outIn = True
+                    
                 
                 self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
                                           "wh":(w, h),
@@ -591,6 +595,7 @@ class YoloDevice:
             isGetIn = not lastCentroid.within(countInAreaPolygon) and currentCentroid.within(countInAreaPolygon) and not self.lastCentroids[id]["countIn"]
             #last centroid in square and current centroid not in square
             isGetOut = lastCentroid.within(countOutAreaPolygon) and not currentCentroid.within(countOutAreaPolygon) and not self.lastCentroids[id]["countOut"]
+            OutAndIn = not self.lastCentroids[id]["countIn"] and self.lastCentroids[id]["countOut"] and not self.lastCentroids[id]["outIn"]
             
             if isGetIn:#get in and not counted
                 # if self.mergedIDs.get(id, None) is not None:#this id represent multi ids
@@ -605,12 +610,11 @@ class YoloDevice:
                 self.totalIn += 1
                 self.currentIn += 1
                 self.lastCentroids[id]["countIn"] = True
-                self.lastCentroids[id]["countOut"] = False
+                # self.lastCentroids[id]["countOut"] = False
                 
                 
-            if not self.lastCentroids[id]["countIn"] and self.lastCentroids[id]["countOut"] and not self.lastCentroids[id]["outIn"]:
+            if OutAndIn:
                 print("Out and in", id)
-                # self.totalIn += 1
                 self.currentIn += 1
                 self.lastCentroids[id]["outIn"] = True
                 
@@ -628,8 +632,9 @@ class YoloDevice:
                     print("Normal out:", id)
                     self.currentIn -= 1
                     
-                self.lastCentroids[id]["countIn"] = False
-                # self.lastCentroids[id]["countOut"] = True
+                    # self.lastCentroids[id]["countIn"] = False
+                self.lastCentroids[id]["countOut"] = True
+                self.lastCentroids[id]["outIn"] = True
                 
             self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center
         
@@ -772,7 +777,7 @@ class YoloDevice:
             thisFrameIDS = set(thisFrameDetections.keys())
             lastFrameIDS = set(lastFrameDetections.keys())
             disappearIDS = lastFrameIDS.difference(thisFrameIDS)
-            mergeDistanceThreshold = 50
+            mergeDistanceThreshold = 70
             # print("disappear id", disappearIDS)
             mergeArea = Polygon(self.mergeIDArea)
             for i in disappearIDS:
@@ -801,7 +806,7 @@ class YoloDevice:
             thisFrameIDS = set(thisFrameDetections.keys())
             lastFrameIDS = set(lastFrameDetections.keys())
             newIDS = thisFrameIDS.difference(lastFrameIDS)
-            mergeDistanceThreshold = 80
+            mergeDistanceThreshold = 100
             
             thisFrameIDsList = [det[3] for det in self.detect_target]
             # print("disappear id", disappearIDS)
@@ -999,16 +1004,21 @@ class YoloDevice:
     def object_tracker_BYTE(self, image):
         #[cx, cy, W, H, score] -> [x1, y1, x2, y2, score]
         dets = list()
-        for det in self.detect_target:
-            score = int(float(det[1]))
-            cx, cy, W, H = det[2]
-            x1 = int(cx - W / 2)
-            y1 = int(cy - H / 2)
-            x2 = x1 + W
-            y2 = y1 + H
-            dets.append([x1, y1, x2, y2, score])
+        if len(self.detect_target) > 0:
+            for det in self.detect_target:
+                score = int(float(det[1]))
+                cx, cy, W, H = det[2]
+                x1 = int(cx - W / 2)
+                y1 = int(cy - H / 2)
+                x2 = x1 + W
+                y2 = y1 + H
+                dets.append([x1, y1, x2, y2, score])
         
-        dets = np.array(dets)
+        else:
+            dets = [[1, 1, 1, 1, 0]]
+        
+        dets = np.array(dets, dtype=float)
+        # print(dets.shape)
         online_targets = self.tracker.update(dets, [1080, 1920], [1080, 1920])
         detWithID = []
         for track in online_targets:
@@ -1280,7 +1290,7 @@ class YoloDevice:
         # print(FPS)
         args = Arg()
         self.tracker = BYTETracker(args)
-        print(f"thresh = {self.thresh} BYTE:age={30}")
+        print(f"thresh = {self.thresh} BYTE:age={args.track_buffer}")
         
         
         self.totalIn = 0#reset counter
