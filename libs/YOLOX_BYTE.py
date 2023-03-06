@@ -6,38 +6,30 @@ import time
 import os
 import shutil
 import threading
-import sys
-import ctypes
 import  random
 #poise estimation
 import mediapipe as mp
 from tqdm import tqdm
 import pathlib
 import json
-
+import torch
+from loguru import logger
 #people counting
 from shapely.geometry import Point, Polygon
 
-#FPS
-from imutils.video import FPS
-
 #BYTE tracker
 from ByteTrack.yolox.tracker.byte_tracker import BYTETracker
+from ByteTrack.yolox.data.data_augment import preproc
+from ByteTrack.yolox.utils import fuse_model, get_model_info, postprocess
+from ByteTrack.yolox.tracking_utils.timer import Timer
+from ByteTrack.yolox.exp import get_exp
 
-
-
-from motpy.testing_viz import draw_detection, draw_track
-
-
-# multiobjecttracker
-# sys.path.insert(1, 'multi-object-tracker')
-# from motrackers import CentroidTracker, CentroidKF_Tracker, SORT, IOUTracker
-# from motrackers.utils import draw_tracks
 
 # SmartFence  lib
 from libs.utils import *
 
 from darknet import darknet
+
 
 
 #config of BYTE tracker
@@ -49,6 +41,210 @@ class Arg():
         # self.min-box-area = 100
         self.mot20 = False
 
+class Predictor(object):
+    def __init__(
+        self,
+        model,
+        exp,
+        trt_file=None,
+        decoder=None,
+        device=torch.device("cpu"),
+        fp16=False
+    ):
+        self.model = model
+        self.decoder = decoder
+        self.num_classes = exp.num_classes
+        self.confthre = exp.test_conf
+        self.nmsthre = exp.nmsthre
+        self.test_size = exp.test_size
+        self.device = device
+        self.fp16 = fp16
+        if trt_file is not None:
+            from torch2trt import TRTModule
+
+            model_trt = TRTModule()
+            model_trt.load_state_dict(torch.load(trt_file))
+
+            x = torch.ones((1, 3, exp.test_size[0], exp.test_size[1]), device=device)
+            self.model(x)
+            self.model = model_trt
+        self.rgb_means = (0.485, 0.456, 0.406)
+        self.std = (0.229, 0.224, 0.225)
+
+    def inference(self, img, timer):
+        img_info = {"id": 0}
+        if isinstance(img, str):
+            img_info["file_name"] = os.path.basename(img)
+            img = cv2.imread(img)
+        else:
+            img_info["file_name"] = None
+
+        height, width = img.shape[:2]
+        img_info["height"] = height
+        img_info["width"] = width
+        img_info["raw_img"] = img
+        img, ratio = preproc(img, self.test_size, self.rgb_means, self.std)
+        img_info["ratio"] = ratio
+        img = torch.from_numpy(img).unsqueeze(0).float().to(self.device)
+        if self.fp16:
+            img = img.half()  # to FP16
+
+        with torch.no_grad():
+            timer.tic()
+            outputs = self.model(img)
+            if self.decoder is not None:
+                outputs = self.decoder(outputs, dtype=outputs.type())
+            outputs = postprocess(
+                outputs, self.num_classes, self.confthre, self.nmsthre
+            )
+            #logger.info("Infer time: {:.4f}s".format(time.time() - t0))
+        return outputs, img_info
+
+'''
+def make_parser():
+    parser = argparse.ArgumentParser("ByteTrack Demo!")
+    parser.add_argument(
+        "demo", default="image", help="demo type, eg. image, video and webcam"
+    )
+    parser.add_argument("-expn", "--experiment-name", type=str, default=None)
+    parser.add_argument("-n", "--name", type=str, default=None, help="model name")
+
+    parser.add_argument(
+        #"--path", default="./datasets/mot/train/MOT17-05-FRCNN/img1", help="path to images or video"
+        "--path", default="./videos/palace.mp4", help="path to images or video"
+    )
+    parser.add_argument("--camid", type=int, default=0, help="webcam demo camera id")
+    parser.add_argument(
+        "--save_result",
+        action="store_true",
+        help="whether to save the inference result of image/video",
+    )
+
+    # exp file
+    parser.add_argument(
+        "-f",
+        "--exp_file",
+        default=None,
+        type=str,
+        help="pls input your expriment description file",
+    )
+    parser.add_argument("-c", "--ckpt", default=None, type=str, help="ckpt for eval")
+    parser.add_argument(
+        "--device",
+        default="gpu",
+        type=str,
+        help="device to run our model, can either be cpu or gpu",
+    )
+    parser.add_argument("--conf", default=None, type=float, help="test conf")
+    parser.add_argument("--nms", default=None, type=float, help="test nms threshold")
+    parser.add_argument("--tsize", default=None, type=int, help="test img size")
+    parser.add_argument("--fps", default=30, type=int, help="frame rate (fps)")
+    parser.add_argument(
+        "--fp16",
+        dest="fp16",
+        default=False,
+        action="store_true",
+        help="Adopting mix precision evaluating.",
+    )
+    parser.add_argument(
+        "--fuse",
+        dest="fuse",
+        default=False,
+        action="store_true",
+        help="Fuse conv and bn for testing.",
+    )
+    parser.add_argument(
+        "--trt",
+        dest="trt",
+        default=False,
+        action="store_true",
+        help="Using TensorRT model for testing.",
+    )
+    # tracking args
+    parser.add_argument("--track_thresh", type=float, default=0.5, help="tracking confidence threshold")
+    parser.add_argument("--track_buffer", type=int, default=30, help="the frames for keep lost tracks")
+    parser.add_argument("--match_thresh", type=float, default=0.8, help="matching threshold for tracking")
+    parser.add_argument(
+        "--aspect_ratio_thresh", type=float, default=1.6,
+        help="threshold for filtering out boxes of which aspect ratio are above the given value."
+    )
+    parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
+    parser.add_argument("--mot20", dest="mot20", default=False, action="store_true", help="test mot20.")
+    return parser
+'''
+def loadModel(exp, args):
+    if not args.experiment_name:
+        args.experiment_name = exp.exp_name
+
+    # output_dir = os.path.join(exp.output_dir, args.experiment_name)
+    # os.makedirs(output_dir, exist_ok=True)
+
+    # if args.save_result:
+    #     vis_folder = os.path.join(output_dir, "track_vis")
+    #     os.makedirs(vis_folder, exist_ok=True)
+
+    if args.trt:
+        args.device = "gpu"
+    args.device = torch.device("cuda" if args.device == "gpu" else "cpu")
+
+    logger.info("Args: {}".format(args))
+
+    if args.conf is not None:
+        exp.test_conf = args.conf
+    if args.nms is not None:
+        exp.nmsthre = args.nms
+    if args.tsize is not None:
+        exp.test_size = (args.tsize, args.tsize)
+
+    model = exp.get_model().to(args.device)
+    logger.info("Model Summary: {}".format(get_model_info(model, exp.test_size)))
+    model.eval()
+
+    if not args.trt:
+        if args.ckpt is None:
+            # ckpt_file = os.path.join(output_dir, "best_ckpt.pth.tar")
+            pass
+        else:
+            ckpt_file = args.ckpt
+        logger.info("loading checkpoint")
+        ckpt = torch.load(ckpt_file, map_location="cpu")
+        # load the model state dict
+        model.load_state_dict(ckpt["model"])
+        logger.info("loaded checkpoint done.")
+
+    if args.fuse:
+        logger.info("\tFusing model...")
+        model = fuse_model(model)
+
+    if args.fp16:
+        model = model.half()  # to FP16
+
+    if args.trt:
+        assert not args.fuse, "TensorRT model is not support model fusing!"
+        trt_file = os.path.join(output_dir, "model_trt.pth")
+        assert os.path.exists(
+            trt_file
+        ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
+        model.head.decode_in_inference = False
+        decoder = model.head.decode_outputs
+        logger.info("Using TensorRT to inference")
+    else:
+        trt_file = None
+        decoder = None
+
+    predictor = Predictor(model, exp, trt_file, decoder, args.device, args.fp16)
+    # current_time = time.localtime()
+    # if args.demo == "image":
+    #     image_demo(predictor, vis_folder, current_time, args)
+    # elif args.demo == "video" or args.demo == "webcam":
+    #     imageflow_demo(predictor, vis_folder, current_time, args)
+    return predictor
+
+
+def loadPredictor(args):
+    exp = get_exp(args.exp_file, args.name)
+    predictor = loadModel(exp, args)
+    return predictor
 
 class YoloDevice:
     def __init__(self, video_url="", output_dir="", run=True, auto_restart=False, repeat=False, obj_trace = False,
@@ -56,7 +252,7 @@ class YoloDevice:
                  names_file="", thresh=0.5, vertex=None, target_classes=None, draw_bbox=True, draw_polygon=True, draw_square=True,
                  draw_socialDistanceArea=False, draw_socialDistanceInfo=False,  social_distance=False, draw_pose=False, count_people=False, draw_peopleCounting=False,
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
-                 schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0):
+                 schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0, args=None):
         
 
         
@@ -93,12 +289,15 @@ class YoloDevice:
         self.IDInfo = dict()
         
         #load model
-        darknet.set_gpu(gpu)#set the gpu you want to use
-        self.network, self.class_names, self.class_colors = darknet.load_network(
-            config_file = self.config_file,
-            data_file = self.data_file,
-            weights = self.weights_file)
+        # darknet.set_gpu(gpu)#set the gpu you want to use
+        # self.network, self.class_names, self.class_colors = darknet.load_network(
+        #     config_file = self.config_file,
+        #     data_file = self.data_file,
+        #     weights = self.weights_file)
         
+        
+        #load yolox model and predictor
+        self.predictor = loadPredictor(args)
         
         self.social_distance = social_distance
         self.draw_socialDistanceArea=draw_socialDistanceArea
@@ -119,30 +318,9 @@ class YoloDevice:
         
         # Object Tracking
         self.id_storage = [] # save the trace id
-#         self.tracker_motpy = MultiObjectTracker(
-#                     dt=1 / 30,
-#                     tracker_kwargs={'max_staleness': 5},
-#                     model_spec={'order_pos': 1, 'dim_pos': 2,
-#                                 'order_size': 0, 'dim_size': 2,
-#                                 'q_var_pos': 5000., 'r_var_pos': 0.1},
-# #                     matching_fn_kwargs={'min_iou': 0.25,
-# #                                     'multi_match_min_iou': 0.93}
-#                     )     
-        # self.tracker = CentroidTracker(max_lost=7, tracker_output_format='mot_challenge', )
-        # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)
-#         self.tracker = SORT(max_lost=3, tracker_output_format='mot_challenge', iou_threshold=0.1)
-        # self.tracker = IOUTracker(max_lost=120, iou_threshold=0.4, min_detection_confidence=0.4, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
-        
         args = Arg()
         self.tracker = BYTETracker(args)
-        #SortOH Tracker
-        # self.tracker = SortOHTracker.Sort_OH(max_age=30)  # create instance of the SORT with occlusion handling tracker
-        # self.conf_trgt = 0.35
-        # self.conf_objt = 0.75
-        # self.tracker.conf_trgt = self.conf_trgt
-        # self.tracker.conf_objt = self.conf_objt
-        
-        
+
         self.bbox_colors = {}
         
         # Video initilize
@@ -217,6 +395,7 @@ class YoloDevice:
         
         #fps calculate
         # self.FPS = FPS()
+        self.timer = Timer()
         
         
         # remove the exist video file
@@ -326,10 +505,6 @@ class YoloDevice:
 
                     
     def prediction(self):        
-        # network, class_names, class_colors = darknet.load_network(
-        #     config_file = self.config_file,
-        #     data_file = self.data_file,
-        #     weights = self.weights_file)
         
         last_time = time.time() # to compute the fps
         cnt = 0  # to compute the fps
@@ -337,7 +512,8 @@ class YoloDevice:
         t = threading.currentThread() # get this function threading status
         
         while getattr(t, "do_run", True):
-            # print(f"{self.alias} predecting")
+            if self.frame_id % 10000 == 0:
+                logger.info('Processing frame {})'.format(self.frame_id)) 
             cnt+=1 
             
             if not self.is_threading:
@@ -365,19 +541,31 @@ class YoloDevice:
                 
             #do yolo prediction and tracking
             
-            darknet_image = darknet.make_image(self.W, self.H, 3)
-            darknet.copy_image_from_bytes(darknet_image, frame_rgb.tobytes())
+            outputs, img_info = self.predictor.inference(self.frame, self.timer)
             
             predict_time = time.time() # get start predict time
-            detections = darknet.detect_image(self.network, self.class_names, darknet_image, thresh=self.thresh)#[className, score, (cx, cy, W, H)]
+            # detections = darknet.detect_image(self.network, self.class_names, darknet_image, thresh=self.thresh)#[className, score, (cx, cy, W, H)]
             predict_time_sum +=  (time.time() - predict_time) # add sum predict time
             
-            darknet.free_image(darknet_image)
-    
+            # darknet.free_image(darknet_image)
+            detections = []
+            for x1, y1, x2, y2, obj_conf, class_conf, class_pred in outputs[0].cpu().detach().numpy():
+                x1 = x1 / 800 * 1080
+                y1 = y1 / 1440 * 1920
+                x2 = x2 / 800 * 1080
+                y2 = y2 / 1440 * 1920
+                W = x2 - x1
+                H = y2 - y1
+                cx = x1 + W / 2
+                cy = y1 + H / 2
+                detections.append([class_pred, obj_conf, (cx, cy, W, H)])
+                
+            
+                
             # filter the scope and target class   
             self.detect_target = detect_filter(detections, self.target_classes, self.vertex)
               
-
+            
             
             # if self.obj_trace and len(self.detect_target) > 0: # draw the image with object tracking           
                 # self.drawImage = self.object_tracker(self.drawImage)
@@ -547,6 +735,8 @@ class YoloDevice:
             countInAreaPolygon = Polygon(self.countInArea_cal)
             countOutAreaPolygon = Polygon(self.countOutArea)
             currentCentroid = Point((center_x, center_y))
+            if center_x <= 0 or center_x >= self.W or center_y <= 0 or center_y >= self.H:#out of boundary
+                continue
             
             if self.lastCentroids.get(id, None) is None:#Don't have this id in last frame
                 
@@ -573,11 +763,8 @@ class YoloDevice:
                 
                 continue
             
-            # if self.lastCentroids[id]["counted"]:#already counted
-            #     continue
             
-            if center_x <= 0 or center_x >= self.W or center_y <= 0 or center_y >= self.H:#out of boundary
-                continue
+            
             
             lastCentroid = self.lastCentroids[id]["center"]
             lastCentroid = Point(lastCentroid)
@@ -997,11 +1184,12 @@ class YoloDevice:
         return drawImage
     
     def object_tracker_BYTE(self, image):
-        #[cx, cy, W, H, score] -> [x1, y1, x2, y2, score]
+        #[className, score, (cx, cy, W, H)] -> [x1, y1, x2, y2, score]
+        
         dets = list()
         if len(self.detect_target) > 0:
             for det in self.detect_target:
-                score = int(float(det[1]))
+                score = float(det[1])
                 cx, cy, W, H = det[2]
                 x1 = int(cx - W / 2)
                 y1 = int(cy - H / 2)
@@ -1013,17 +1201,15 @@ class YoloDevice:
             dets = [[1, 1, 1, 1, 0]]
         
         dets = np.array(dets, dtype=float)
+        
         # print(dets.shape)
         online_targets = self.tracker.update(dets, [1080, 1920], [1080, 1920])
+        # logger.info(f"{online_targets}")
+        
         detWithID = []
         for track in online_targets:
             t, l, w, h = track.tlwh
             id = track.track_id
-            
-            # t = t / 1440 * 1920
-            # l = l / 800 * 1080
-            # cx = int( (t + w / 2) / 1440 * 1920 )
-            # cy = int( (l + h / 2) / 800 * 1080 )
             cx = int( (t + w / 2))
             cy = int( (l + h / 2))
             # assign each id with a color
@@ -1222,14 +1408,8 @@ class YoloDevice:
             videoPath = os.path.join(videoFolder, video)
             self.cap = cv2.VideoCapture(videoPath)
             FPS = self.cap.get(cv2.CAP_PROP_FPS)
-            # print(FPS)
-            # self.tracker = CentroidTracker(max_lost=30, tracker_output_format='mot_challenge', )#reset tracker
-            # self.tracker = CentroidKF_Tracker(max_lost=30, tracker_output_format='mot_challenge', centroid_distance_threshold=50)#yolov4 seeting
-            # self.tracker = SORT(max_lost=30, tracker_output_format='mot_challenge', iou_threshold=0.5)
-            # self.tracker = IOUTracker(max_lost=20, iou_threshold=0.3, min_detection_confidence=0.2, max_detection_confidence=0.7, tracker_output_format='mot_challenge')
             
             #BYTE Tracker
-            # args = Arg()
             self.tracker = BYTETracker(args)
             print(f"thresh = {self.thresh} BYTE:age={30}")
             
@@ -1284,7 +1464,6 @@ class YoloDevice:
         self.cap = cv2.VideoCapture(video)
         FPS = self.cap.get(cv2.CAP_PROP_FPS)
         # print(FPS)
-        # args = Arg()
         self.tracker = BYTETracker(args)
         print(f"thresh = {self.thresh} BYTE:age={args.track_buffer}")
         

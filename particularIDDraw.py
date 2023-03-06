@@ -22,7 +22,7 @@ framesDir = outputDir / "frames/"
 framesDir.mkdir(parents=True, exist_ok=True)
 videoFile = Path("./usedVideos/cam1-2022-04-16_14-00-11__47__2.mkv")
 jsonFile = Path("./videoTest_BYTE/cam1-2022-04-16_14-00-11__47__2.mkv_IDInfo.json")
-drawID = [205, 274, 305, 352, 378, 386, 370, 408]
+drawID = [204, 273, 304, 351, 377, 385, 369, 407]
 
 IDInfo = None
 frameID = 0
