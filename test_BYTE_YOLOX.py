@@ -1,36 +1,25 @@
-from libs.YOLO_BYTE import YoloDevice
+from libs.YOLOX_BYTE import YoloDevice
 import argparse
 from pathlib import Path
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--video', type=str, required=True,  help='video file or folder')
-parser.add_argument('--yolo_thresh', type=float, default=0.4,  help='yolo threshold')
-parser.add_argument('--track_thresh', type=float, default=0.6,  help='BYTETracker parameter')
-parser.add_argument('--track_buffer', type=int, default=30,  help='BYTETracker parameter')
-parser.add_argument('--match_thresh', type=float, default=0.9,  help='BYTETracker parameter')
-parser.add_argument('--no_save_video',action='store_false' , help='save video')
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--video', type=str, required=True,  help='video file or folder')
+# parser.add_argument('--yolo_thresh', type=float, default=0.4,  help='yolo threshold')
+# parser.add_argument('--track_thresh', type=float, default=0.6,  help='BYTETracker parameter')
+# parser.add_argument('--track_buffer', type=int, default=30,  help='BYTETracker parameter')
+# parser.add_argument('--match_thresh', type=float, default=0.9,  help='BYTETracker parameter')
+# parser.add_argument('--no_save_video',action='store_false' , help='save video')
 
-args = parser.parse_args()
+# args = parser.parse_args()
 
 
 def make_parser():
     parser = argparse.ArgumentParser("ByteTrack Demo!")
     
-    
-    
     parser.add_argument('--video', type=str, required=True,  help='video file or folder')
     parser.add_argument('--yolo_thresh', type=float, default=0.4,  help='yolo threshold')
-    # parser.add_argument('--track_thresh', type=float, default=0.6,  help='BYTETracker parameter')
-    # parser.add_argument('--track_buffer', type=int, default=30,  help='BYTETracker parameter')
-    # parser.add_argument('--match_thresh', type=float, default=0.9,  help='BYTETracker parameter')
     parser.add_argument('--no_save_video',action='store_false' , help='save video')
     
-    
-    
-    
-    # parser.add_argument(
-    #     "demo", default="image", help="demo type, eg. image, video and webcam"
-    # )
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
 
@@ -98,7 +87,7 @@ def make_parser():
     return parser
 
 
-# args = make_parser().parse_args()
+args = make_parser().parse_args()
 
 
 # print(Path(args.video).name)
@@ -122,7 +111,7 @@ yolo1 = YoloDevice(
         save_video = args.no_save_video,        
         target_classes=["person"],
         auto_restart = True,
-        skip_frame=2,
+        skip_frame=None,
         count_people=True,
         draw_peopleCounting=True,
         draw_pose=True,
@@ -131,7 +120,7 @@ yolo1 = YoloDevice(
         testMode=True,
         repeat=False,
         gpu=0,
-        
+        args=args,
     )    
 
     

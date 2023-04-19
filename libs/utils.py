@@ -96,6 +96,17 @@ def del_dir(output_dir, expire_day):
             except OSError as e:
                 print("[Error] Delete video error:",e)
 
+def re_make_dir(path: str):    
+    """
+      Delete all file in the folder.
+    """
+    try:
+        shutil.rmtree(path)        
+    except OSError as e:
+        print ("[Warning]: %s - %s." % (e.filename, e.strerror))
+        
+    os.makedirs(path)
+
 def restart():    
     os.execv(sys.executable, ['python'] + sys.argv)
 

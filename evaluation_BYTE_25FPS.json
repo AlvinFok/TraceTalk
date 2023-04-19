@@ -1,0 +1,212 @@
+{
+	"args.yolo_thresh=0.4,args.track_thresh=0.6,args.track_buffer=30,args.match_thresh=0.9": [
+		{
+			"usedVideos_re/cam1-2022-04-13_15-00-26__3__2.mkv": {
+				"GT_TotalIn": 3,
+				"Pre__TotalIn": 3,
+				"GT_Current": 2,
+				"Pred_Current": 2
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-10_15-00-46__11__-1.mkv": {
+				"GT_TotalIn": 11,
+				"Pre__TotalIn": 11,
+				"GT_Current": -1,
+				"Pred_Current": -1
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-10_14-00-44__12__-4.mkv": {
+				"GT_TotalIn": 12,
+				"Pre__TotalIn": 12,
+				"GT_Current": -4,
+				"Pred_Current": -4
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-03_16-00-24__8__4.mkv": {
+				"GT_TotalIn": 8,
+				"Pre__TotalIn": 8,
+				"GT_Current": 4,
+				"Pred_Current": 4
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-03_14-00-19__16__1.mkv": {
+				"GT_TotalIn": 16,
+				"Pre__TotalIn": 16,
+				"GT_Current": 1,
+				"Pred_Current": 1
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-02_15-00-07__3__1.mkv": {
+				"GT_TotalIn": 3,
+				"Pre__TotalIn": 3,
+				"GT_Current": 1,
+				"Pred_Current": 1
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-03_15-00-21__1__1.mkv": {
+				"GT_TotalIn": 1,
+				"Pre__TotalIn": 33,
+				"GT_Current": 1,
+				"Pred_Current": 1
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-03-25_13-00-43__28__16.mkv": {
+				"GT_TotalIn": 28,
+				"Pre__TotalIn": 28,
+				"GT_Current": 16,
+				"Pred_Current": 15
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-16_14-00-11__46__2.mkv": {
+				"GT_TotalIn": 46,
+				"Pre__TotalIn": 47,
+				"GT_Current": 2,
+				"Pred_Current": 3
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-07_17-00-36__3__0.mkv": {
+				"GT_TotalIn": 3,
+				"Pre__TotalIn": 3,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-16_15-00-14__37__4.mkv": {
+				"GT_TotalIn": 37,
+				"Pre__TotalIn": 37,
+				"GT_Current": 4,
+				"Pred_Current": 3
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-16_16-00-17__7__-6.mkv": {
+				"GT_TotalIn": 7,
+				"Pre__TotalIn": 7,
+				"GT_Current": -6,
+				"Pred_Current": -6
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-07_14-00-27__11__0.mkv": {
+				"GT_TotalIn": 11,
+				"Pre__TotalIn": 12,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-08_14-00-40__7__0.mkv": {
+				"GT_TotalIn": 7,
+				"Pre__TotalIn": 7,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-08_15-00-43__10__1.mkv": {
+				"GT_TotalIn": 10,
+				"Pre__TotalIn": 10,
+				"GT_Current": 1,
+				"Pred_Current": 1
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-07_16-00-33__7__2.mkv": {
+				"GT_TotalIn": 7,
+				"Pre__TotalIn": 7,
+				"GT_Current": 2,
+				"Pred_Current": 2
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-08_16-00-46__8__-1.mkv": {
+				"GT_TotalIn": 8,
+				"Pre__TotalIn": 8,
+				"GT_Current": -1,
+				"Pred_Current": -1
+			}
+		}
+	],
+	"args.yolo_thresh=0.4,args.track_thresh=0.5,args.track_buffer=30,args.match_thresh=0.9": [
+		{
+			"usedVideos_re/cam1-2022-04-16_15-00-14__37__4.mkv": {
+				"GT_TotalIn": 37,
+				"Pre__TotalIn": 38,
+				"GT_Current": 4,
+				"Pred_Current": 4
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-07_14-00-27__11__0.mkv": {
+				"GT_TotalIn": 11,
+				"Pre__TotalIn": 12,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-07_14-00-27__11__0.mkv": {
+				"GT_TotalIn": 11,
+				"Pre__TotalIn": 12,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-05-07_14-00-27__11__0.mkv": {
+				"GT_TotalIn": 11,
+				"Pre__TotalIn": 12,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		},
+		{
+			"usedVideos_re/cam1-2022-04-16_15-00-14__37__4.mkv": {
+				"GT_TotalIn": 37,
+				"Pre__TotalIn": 38,
+				"GT_Current": 4,
+				"Pred_Current": 4
+			}
+		}
+	],
+	"args.yolo_thresh=0.4,args.track_thresh=0.5,args.track_buffer=30,args.match_thresh=0.8": [
+		{
+			"usedVideos_re/cam1-2022-05-07_14-00-27__11__0.mkv": {
+				"GT_TotalIn": 11,
+				"Pre__TotalIn": 12,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		}
+	],
+	"args.yolo_thresh=0.4,args.track_thresh=0.5,args.track_buffer=60,args.match_thresh=0.9": [
+		{
+			"usedVideos_re/cam1-2022-04-16_15-00-14__37__4.mkv": {
+				"GT_TotalIn": 37,
+				"Pre__TotalIn": 38,
+				"GT_Current": 4,
+				"Pred_Current": 5
+			}
+		}
+	],
+	"args.yolo_thresh=0.4,args.track_thresh=0.5,args.track_buffer=60,args.match_thresh=0.8": [
+		{
+			"usedVideos_re/cam1-2022-05-07_14-00-27__11__0.mkv": {
+				"GT_TotalIn": 11,
+				"Pre__TotalIn": 12,
+				"GT_Current": 0,
+				"Pred_Current": 0
+			}
+		}
+	]
+}

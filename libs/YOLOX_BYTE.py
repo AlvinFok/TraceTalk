@@ -32,14 +32,6 @@ from darknet import darknet
 
 
 
-#config of BYTE tracker
-class Arg():
-    def __init__(self):
-        self.track_thresh = 0.6
-        self.track_buffer = 30
-        self.match_thresh = 0.9
-        # self.min-box-area = 100
-        self.mot20 = False
 
 class Predictor(object):
     def __init__(
@@ -318,7 +310,7 @@ class YoloDevice:
         
         # Object Tracking
         self.id_storage = [] # save the trace id
-        args = Arg()
+        
         self.tracker = BYTETracker(args)
 
         self.bbox_colors = {}
@@ -345,18 +337,17 @@ class YoloDevice:
         self.totalIn = 0#count how many people enter the area totally
         self.currentIn = 0#how many people are in the area right now
         self.draw_square = draw_square
-        # self.countInArea_draw = np.array([[0, 1080],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
-        # self.countInArea_cal = np.array([[0, 1090],[0, 768],[557, 247],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
-        self.countInArea_cal = np.array([[0, 1090],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1090, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1090] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+        # self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
+        self.countInArea_cal = np.array([[0, 1100],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1100, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1100] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
         self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1609, 578], [1980, 728], [1980, 1080]])
+
         self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
         self.suspiciousArea_L = np.array([[1080, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])
         self.mergeIDArea = np.array([[144, 1074],[511, 465],[1099, 485],[1643, 1080]])#only in this area id can merge
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.suspiciousAreaIDTracker = dict()
-        self.IDSwith = {
+        self.IDSwitch = {
                         "frame":1000,
                         "amount":0
                         }
@@ -821,6 +812,8 @@ class YoloDevice:
                     # self.lastCentroids[id]["countIn"] = False
                 self.lastCentroids[id]["countOut"] = True
                 self.lastCentroids[id]["outIn"] = True
+                self.lastCentroids[id]["countIn"] = False 
+                
                 
             self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center
         
@@ -839,7 +832,7 @@ class YoloDevice:
         countedID = set()
         detections = dict()
         
-        self.IDSwith["frame"] += 1
+        self.IDSwitch["frame"] += 1
         ############################
         #occlusion handling
         #assume that some people are occluded when 
@@ -877,10 +870,11 @@ class YoloDevice:
                     ############################
                     #ID switch happening
                     ############################
-                    if self.IDSwith.get("frame", 10) < 5 and self.IDSwith.get("amount", 0) > 0:
+                    #FPS depends
+                    if self.IDSwitch.get("frame", 20) < 10 and self.IDSwitch.get("amount", 0) > 0:
                         self.totalIn -= 1
                         self.currentIn -= 1
-                        self.IDSwith["amount"] -= 1
+                        self.IDSwitch["amount"] -= 1
                         print(f"Id switch:{id}")
                 
         ############################
@@ -897,8 +891,8 @@ class YoloDevice:
         #2, 3, 4
         ############################
         if len(self.IDsInLastSuspiciousArea) > len(IDsInCurrentSuspiciousArea):#the amount of people in the last frame is larger than this frame, may have id switching in the future
-            self.IDSwith["frame"] = 0
-            self.IDSwith["amount"] += len(self.IDsInLastSuspiciousArea) - len(IDsInCurrentSuspiciousArea)
+            self.IDSwitch["frame"] = 0
+            self.IDSwitch["amount"] += len(self.IDsInLastSuspiciousArea) - len(IDsInCurrentSuspiciousArea)
             
             
         
@@ -909,8 +903,9 @@ class YoloDevice:
         ############################
         # suddenly appear id
         self.unreliableID = []
-        TRACK_FRAMES = 10  # const for amount of frames to track
-        COUNTED_THRESHOLD = 8
+        #FPS depends
+        TRACK_FRAMES = 20  # const for amount of frames to track
+        COUNTED_THRESHOLD = 16
         mode = "counted"  # ["counted", "continuous"]
         for old_ID in list(self.suspiciousAreaIDTracker.keys()):
             if self.suspiciousAreaIDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
@@ -1059,12 +1054,6 @@ class YoloDevice:
 
         for new_id in newIDs:#add new id
             self.AllIDtracker[new_id] = {"tracked": 1, "counted": 1, "continuous": True}#continuous not using
-                
-    
-    def __checkBoundaryIDS(self):
-        
-        pass
-    
     
     def socialDistance(self, image):
         closePairs = []
@@ -1118,15 +1107,15 @@ class YoloDevice:
     #https://google.github.io/mediapipe/solutions/face_detection.html
     def face_detection(self, detectImage, drawImage):
         #only use yolo center
-        # for index, detection in enumerate(self.detect_target):#for each detection
-        #     self.detect_target[index] = list(self.detect_target[index])
-        #     left, top, right, bottom = darknet.bbox2points(detection[2])
-        #     imageWidth, imageHeight = right - left, bottom - top
-        #     centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
-        #     self.detect_target[index].append((centerX, centerY))
-        #     cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
+        for index, detection in enumerate(self.detect_target):#for each detection
+            self.detect_target[index] = list(self.detect_target[index])
+            left, top, right, bottom = darknet.bbox2points(detection[2])
+            imageWidth, imageHeight = right - left, bottom - top
+            centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
+            self.detect_target[index].append((centerX, centerY))
+            cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
         
-        # return drawImage
+        return drawImage
         
         
         with self.mp_face_detection.FaceDetection(min_detection_confidence=0.3) as face_detection:

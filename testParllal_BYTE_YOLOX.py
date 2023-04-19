@@ -22,11 +22,11 @@ processes = list()
 N = args.thread#how many process running at the same time
 queue = list()
 
-folder = "usedVideos"
+folder = "usedVideos_re"
 
 #generate command
 for video in sorted(os.listdir(folder)):
-    queue.append(['python', 'test_BYTE.py', '--video', os.path.join(folder, video), '--yolo_thresh', str(args.yolo_thresh), '--track_thresh', str(args.track_thresh), '--track_buffer', str(args.track_buffer) ,'--match_thresh', str(args.match_thresh)])
+    queue.append(['python', 'test_BYTE_YOLOX.py', '--video', os.path.join(folder, video), '--yolo_thresh', str(args.yolo_thresh), '--track_thresh', str(args.track_thresh), '--track_buffer', str(args.track_buffer) ,'--match_thresh', str(args.match_thresh), '-f', 'ByteTrack/exps/example/mot/yolox_x_mix_det.py', '-c', 'ByteTrack/pretrained/bytetrack_x_mot17.pth.tar', '--fp16', '--fuse'])
 
 #log file
 file = open("testResult_BYTE.log", 'w')

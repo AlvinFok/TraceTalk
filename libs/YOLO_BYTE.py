@@ -631,7 +631,7 @@ class YoloDevice:
                     print("Normal out:", id)
                     self.currentIn -= 1
                     
-                    # self.lastCentroids[id]["countIn"] = False
+                    self.lastCentroids[id]["countIn"] = False
                 self.lastCentroids[id]["countOut"] = True
                 self.lastCentroids[id]["outIn"] = True
                 
