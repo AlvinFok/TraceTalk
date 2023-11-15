@@ -17,3 +17,5 @@ imutils
 requests
 tensorflow
 dlib
+loguru
+shapely

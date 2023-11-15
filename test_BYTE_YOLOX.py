@@ -93,16 +93,10 @@ args = make_parser().parse_args()
 # print(Path(args.video).name)
 #yolov4 tiny
 yolo1 = YoloDevice(
-        config_file = './cfg_person/yolov4-tiny-person.cfg',
-        weights_file = './weights/yolov4-tiny-person_final.weights',
-        # config_file = './cfg_person/yolov4.cfg',
-        # weights_file = 'darknet/backup/yolov4-preson_last.weights',
-        data_file = './cfg_person/person.data',
         thresh = args.yolo_thresh,
         output_dir = f'videoTest_{args.exp}',
         video_url = args.video,
         is_threading = False,
-        # vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
         vertex = None,
         draw_polygon=False,
         alias=Path(args.video).name,
@@ -110,7 +104,7 @@ yolo1 = YoloDevice(
         obj_trace = True,        
         save_img = False,
         save_video = args.no_save_video,        
-        target_classes=["person"],
+        # target_classes=["person"],
         auto_restart = True,
         skip_frame=None,
         count_people=True,

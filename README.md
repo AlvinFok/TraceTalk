@@ -1,16 +1,15 @@
-# People-Flow-System-of-the-Sixth-Japanese-Navy-Fuel-Plant
+# People-Flow-System
 六燃人流系統
-# YoloTalk install tutorial
+# install tutorial
 
 
-## Step 1. 下載 YoloTalk 檔案
+## Step 1. 下載檔案
 ```bash=
-git clone https://github.com/jim93073/YoloTalk.git
+git clone https://github.com/AlvinFok/People-Flow-System-of-the-Sixth-Japanese-Navy-Fuel-Plant
 
 cd YoloTalk
-git clone https://github.com/adipandas/multi-object-tracker.git
 git clone https://github.com/AlexeyAB/darknet.git
-git clone https://github.com/mhnasseri/sort_oh
+git clone https://github.com/ifzhang/ByteTrack.git
 ```
 
 ## Step 2. 編譯 darknet
@@ -40,9 +39,14 @@ make
 ## Step 3. 安裝套件並執行範例程式
 > 可先自行安裝python虛擬環境
 
+> 依ByteTrack 指示安裝[ByteTrack](https://github.com/ifzhang/ByteTrack.git)
+
+> yolox 版本使用```bytetrack_x_mot17.pth.tar```
+
 ```bash=
 pip install -r requirements.txt
-python main.py
+python3 test_BYTE_YOLOX.py --video 0325__12__12.mp4 -f ByteTrack/exps/example/mot/yolox_x_mix_det.py
+ -c ByteTrack/pretrained/bytetrack_x_mot17.pth.tar --fp16 --fuse
 ```
 
 執行完成後，會自動產生demo資料夾，儲存辨識結果

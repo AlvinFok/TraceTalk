@@ -277,8 +277,13 @@ class YoloDevice:
             self.countOutArea = np.array([[-18, 990], [-18, 283],[318, 130],[369, 144],[463, 0],[1280, 278],[1280, 750],[1080, 1050]])
             self.suspiciousArea = None#This area use to handle occlusion when people get in square
             self.mergeIDArea  = None#only in this area id can merge
-            
         
+        elif "0325__12__12.mp4"  in video_url:
+            self.countInArea_cal = np.array([[0, 1100],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1100, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1100] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+            self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1609, 578], [1980, 728], [1980, 1080]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+            self.suspiciousArea = np.array([[1070, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])#This area use to handle occlusion when people get in square
+            self.mergeIDArea = np.array([[144, 1074],[511, 465],[1099, 485],[1643, 1080]])#only in this area id can merge
+            self.vertex = [[180, 873],[483, 266],[1124, 289],[1769, 870]]
         
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
@@ -291,7 +296,7 @@ class YoloDevice:
         self.mergedIDs = dict()
         self.AllIDtracker = dict()
         self.unreliableID = list()
-        '''
+        
         #social distance
         self.socialDistanceArea = np.array([ [378, 1080],[585, 345],[939, 339],[1590, 1080] ], np.float32)
         self.realHeight, self.realWidth = 19.97, 5.6#m
@@ -303,7 +308,7 @@ class YoloDevice:
         # get transform matrix
         self.M = cv2.getPerspectiveTransform(self.socialDistanceArea, transformPoints)
         self.realHeightPerPixel, self.realWidthPerPixel = (self.realHeight / self.transformImageHeight), (self.realWidth / self.transformImageWidth)
-        '''
+        
         #fps calculate
         self.timer = Timer()
         
@@ -477,12 +482,13 @@ class YoloDevice:
                         cy = y1 + h / 2
                         detections.append([class_pred, obj_conf, (cx, cy, w, h)])
             
-            
+                
                 # filter the scope and target class   
                 self.detect_target = detect_filter(detections, self.target_classes, self.vertex, True)
                 
                 
                 self.detect_target = self.object_tracker_BYTE()
+                # print(self.detect_target)
             
             predict_time_sum +=  (time.time() - predict_time) # add sum predict time
             
@@ -505,12 +511,7 @@ class YoloDevice:
             if self.draw_socialDistanceArea:
                 socialDistanceArea_int = np.array(self.socialDistanceArea, np.int32)
                 cv2.polylines(self.drawImage, pts=[socialDistanceArea_int], isClosed=True, color=(0,255,255), thickness=3)#draw square area
-            
-            
-            # cv2.polylines(self.drawImage, pts=[self.suspiciousArea], isClosed=True, color=(0,255,0), thickness=3)#draw square area
-            
-                
-            self.drawImage = self.face_detection(frame_rgb, self.drawImage)
+
             
             if self.count_people and len(self.detect_target) > 0:
                 self.people_counting()
@@ -583,7 +584,6 @@ class YoloDevice:
         
         if self.suspiciousArea is not None:
             self.__suspiciousAreaHandling()
-        #self.__checkUnreliableIDs()
         if 0 < len(self.detect_target) <= 10 and self.mergeIDArea is not None:
         
             # pass
@@ -633,12 +633,6 @@ class YoloDevice:
             
             lastCentroid = self.lastCentroids[id]["center"]
             lastCentroid = Point(lastCentroid)
-
-            
-            # inSquareWhenAppear = lastCentroid.within(countInAreaPolygon) and currentCentroid.within(countInAreaPolygon)
-            # if inSquareWhenAppear:#The last position and current position are in the square but not counted. That means people show up in the square at the beginning.
-            #     #mark the people counted but not plus 1
-            #     count = True
             
             # if the last centroid not in square and current centroid in square and non-counted
             # that mean the person get into the square from outside.
@@ -797,8 +791,6 @@ class YoloDevice:
                 # add counter and keep cont status if already not continuous
                 old_ID_dict = self.suspiciousAreaIDTracker[old_ID]
                 self.suspiciousAreaIDTracker[old_ID] = {"tracked": old_ID_dict["tracked"]+1, "counted": old_ID_dict["counted"]+1, "continuous": True if old_ID_dict["continuous"] else False}
-                # print(old_ID, self.suspiciousAreaIDTracker[old_ID])
-                # print(f"IDsInCurrentSuspiciousArea = {IDsInCurrentSuspiciousArea}")
                 
             else:
                 self.suspiciousAreaIDTracker[old_ID]["tracked"] += 1
@@ -901,37 +893,7 @@ class YoloDevice:
                     print(f"split unreliable ID {removeID} from {ID}, {self.mergedIDs[ID]}")
         # self.lastDetections = self.detect_target
     
-    def __checkUnreliableIDs(self):
-        '''
-        input yolo detections
-        check unreliableIDs with few frames
-        '''
-        self.unreliableID = list()
-        #get IDS in this frame
-        IDSThisFrame = [det[3] for det in self.detect_target]
-        newIDs = set(IDSThisFrame).difference(set(self.AllIDtracker.keys()))
-        
-        TRACK_FRAMES = 15  # const for amount of frames to track
-        COUNTED_THRESHOLD = 6
-        for ID in list(self.AllIDtracker):#use list to copy the dict because will remove element in loop
-            if ID in IDSThisFrame:#ID in this frame
-                # if self.AllIDtracker.get(ID, None) is None :#new ID
-                #     self.AllIDtracker[ID] = {"tracked": 1, "counted": 1, "continuous": True}
-                self.AllIDtracker[ID]["tracked"] += 1
-            self.AllIDtracker[ID]["counted"] += 1
-            
-            if self.AllIDtracker[ID]["counted"] >= TRACK_FRAMES:
-                if self.AllIDtracker[ID]["tracked"] < COUNTED_THRESHOLD:#flash id
-                    self.unreliableID.append(ID)
-                    print(f"unreliable ID:{ID}")
-                    
-                del self.AllIDtracker[ID]#del ID
 
-
-
-        for new_id in newIDs:#add new id
-            self.AllIDtracker[new_id] = {"tracked": 1, "counted": 1, "continuous": True}#continuous not using
-    
     def socialDistance(self, image):
         closePairs = []
 
@@ -980,75 +942,7 @@ class YoloDevice:
                     cv2.putText(self.socialDistanceImage, message, (pairCenterX, pairCenterY+30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0, 255), 2)#draw distance below the line
 
         return image
-    
-    #https://google.github.io/mediapipe/solutions/face_detection.html
-    def face_detection(self, detectImage, drawImage):
-        #only use yolo center
-        for index, detection in enumerate(self.detect_target):#for each detection
-            self.detect_target[index] = list(self.detect_target[index])
-            left, top, right, bottom = darknet.bbox2points(detection[2])
-            imageWidth, imageHeight = right - left, bottom - top
-            centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
-            self.detect_target[index].append((centerX, centerY))
-            cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
-        
-        return drawImage
-        
-        
-        with self.mp_face_detection.FaceDetection(min_detection_confidence=0.3) as face_detection:
-            for index, detection in enumerate(self.detect_target):#for each detection
-            
-                self.detect_target[index] = list(self.detect_target[index])
-                left, top, right, bottom = darknet.bbox2points(detection[2])
-                # left, top, right, bottom = left-50, top-50, right+50, bottom+50
-            
-                closestHeadIndex = None
-                minDistance = right + bottom#you can define any value here
-                imageWidth, imageHeight = right - left, bottom - top
-                head_x, head_y = left + imageWidth/2, top + imageHeight / 7# self define head ideal location
-                
-                boundaryError = left < 0 or right > self.W or top < 0 or bottom > self.H
-                if boundaryError:
-                    centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
-                    self.detect_target[index].append((centerX, centerY))
-                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (255,0,0), -1)
-                    continue
-                
-                # Convert the BGR image to RGB and process it with MediaPipe Face Detection.
-                results = face_detection.process(detectImage[top:bottom, left:right])
-                
-                
-                if not results.detections:#No face detected
-                    centerX, centerY = (left + imageWidth/2), (top + imageHeight)#use the yolo bbox info to define center
-                    self.detect_target[index].append((centerX, centerY))
-                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (0,255,0), -1)
-                    continue
-                
-                for bboxIndex, detection in enumerate(results.detections):
-                    bbox = detection.location_data.relative_bounding_box
-                    xmin, ymin, width, height = bbox.xmin * imageWidth, bbox.ymin * imageHeight, bbox.width * imageWidth, bbox.height * imageHeight
-                    centerX, centerY = xmin + width/2, ymin + height/2
-                    distance = ( (head_x - centerX)**2 + (head_y - centerY)**2 )**0.5
-                    if distance < minDistance:
-                        minDistance = distance
-                        closestHeadIndex = bboxIndex
-                        
-                # self.mp_drawing.draw_detection(drawImage[top:bottom, left:right], results.detections[closestHeadIndex])# draw the closest head
-                
-                bbox = results.detections[closestHeadIndex].location_data.relative_bounding_box
-                xmin, ymin, width, height = bbox.xmin * imageWidth, bbox.ymin * imageHeight, bbox.width * imageWidth, bbox.height * imageHeight
-                centerX, centerY = (left + xmin + width/2), bottom
-                self.detect_target[index].append((centerX, centerY))
-                try:
-                    cv2.circle(drawImage, (int(centerX), int(centerY)), 8, (0,255,0), -1)
-                
-                except:
-                    print("Draw image shape",drawImage.shape)
-                    # print(drawImage)
-                    #print(type(drawImage))
-                
-        return drawImage
-    
+ 
     def object_tracker_BYTE(self):
         #[className, score, (cx, cy, W, H)] -> [x1, y1, x2, y2, score]
         
@@ -1081,12 +975,10 @@ class YoloDevice:
                                         random.randint(0, 255),
                                         random.randint(0, 255))
             # save results
-            detWithID.append(['person', track.score, [cx, cy, w, h], id])
+            detWithID.append(['person', track.score, [cx, cy, w, h], id, [cx, cy + w / 2]])
 
         return detWithID
 
-       
-    
     def set_listener(self, on_detection):
         self.detection_listener = on_detection
         
@@ -1139,15 +1031,12 @@ class YoloDevice:
         
         #save detections info to json file
         # with open(self.output_dir_json, "w") as outfile:
-        #     json.dump(self.IDInfo, outfile)      
-            
-        
+        #     json.dump(self.IDInfo, outfile)         
         
     def restart(self):
         self.stop()        
         self.write_log("[Info] Restart the program")
-        restart()
-        
+        restart()    
         
     def write_log(self, msg):     
         f= open('log.txt', "a")    
@@ -1156,12 +1045,10 @@ class YoloDevice:
                  group=self.group, alias=self.alias, url=self.video_url, msg=msg))
         f.close()
        
-    
     def print_msg(self, msg):
         if self.display_message == True:            
             print(msg)
-            
-            
+             
     def save_video_frame(self, frame):
         
         if self.is_threading:
