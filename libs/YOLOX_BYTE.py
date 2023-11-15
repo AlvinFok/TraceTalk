@@ -7,8 +7,7 @@ import os
 import shutil
 import threading
 import  random
-#poise estimation
-import mediapipe as mp
+
 from tqdm import tqdm
 import pathlib
 import json
@@ -92,78 +91,7 @@ class Predictor(object):
             #logger.info("Infer time: {:.4f}s".format(time.time() - t0))
         return outputs, img_info
 
-'''
-def make_parser():
-    parser = argparse.ArgumentParser("ByteTrack Demo!")
-    parser.add_argument(
-        "demo", default="image", help="demo type, eg. image, video and webcam"
-    )
-    parser.add_argument("-expn", "--experiment-name", type=str, default=None)
-    parser.add_argument("-n", "--name", type=str, default=None, help="model name")
 
-    parser.add_argument(
-        #"--path", default="./datasets/mot/train/MOT17-05-FRCNN/img1", help="path to images or video"
-        "--path", default="./videos/palace.mp4", help="path to images or video"
-    )
-    parser.add_argument("--camid", type=int, default=0, help="webcam demo camera id")
-    parser.add_argument(
-        "--save_result",
-        action="store_true",
-        help="whether to save the inference result of image/video",
-    )
-
-    # exp file
-    parser.add_argument(
-        "-f",
-        "--exp_file",
-        default=None,
-        type=str,
-        help="pls input your expriment description file",
-    )
-    parser.add_argument("-c", "--ckpt", default=None, type=str, help="ckpt for eval")
-    parser.add_argument(
-        "--device",
-        default="gpu",
-        type=str,
-        help="device to run our model, can either be cpu or gpu",
-    )
-    parser.add_argument("--conf", default=None, type=float, help="test conf")
-    parser.add_argument("--nms", default=None, type=float, help="test nms threshold")
-    parser.add_argument("--tsize", default=None, type=int, help="test img size")
-    parser.add_argument("--fps", default=30, type=int, help="frame rate (fps)")
-    parser.add_argument(
-        "--fp16",
-        dest="fp16",
-        default=False,
-        action="store_true",
-        help="Adopting mix precision evaluating.",
-    )
-    parser.add_argument(
-        "--fuse",
-        dest="fuse",
-        default=False,
-        action="store_true",
-        help="Fuse conv and bn for testing.",
-    )
-    parser.add_argument(
-        "--trt",
-        dest="trt",
-        default=False,
-        action="store_true",
-        help="Using TensorRT model for testing.",
-    )
-    # tracking args
-    parser.add_argument("--track_thresh", type=float, default=0.5, help="tracking confidence threshold")
-    parser.add_argument("--track_buffer", type=int, default=30, help="the frames for keep lost tracks")
-    parser.add_argument("--match_thresh", type=float, default=0.8, help="matching threshold for tracking")
-    parser.add_argument(
-        "--aspect_ratio_thresh", type=float, default=1.6,
-        help="threshold for filtering out boxes of which aspect ratio are above the given value."
-    )
-    parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
-    parser.add_argument("--mot20", dest="mot20", default=False, action="store_true", help="test mot20.")
-    return parser
-'''
 def loadModel(exp, args):
     if not args.experiment_name:
         args.experiment_name = exp.exp_name
@@ -232,7 +160,6 @@ def loadModel(exp, args):
     #     imageflow_demo(predictor, vis_folder, current_time, args)
     return predictor
 
-
 def loadPredictor(args):
     exp = get_exp(args.exp_file, args.name)
     predictor = loadModel(exp, args)
@@ -244,7 +171,8 @@ class YoloDevice:
                  names_file="", thresh=0.5, vertex=None, target_classes=None, draw_bbox=True, draw_polygon=True, draw_square=True,
                  draw_socialDistanceArea=False, draw_socialDistanceInfo=False,  social_distance=False, draw_pose=False, count_people=False, draw_peopleCounting=False,
                  alias="", group="", place="", cam_info="", warning_level=None, is_threading=True, skip_frame=None,
-                 schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0, args=None):
+                 schedule=[], save_img=True, save_original_img=False, save_video=False, save_video_original=False, testMode=False, gpu=0, args=None,
+                 ):
         
 
         
@@ -279,17 +207,10 @@ class YoloDevice:
         self.save_video_original = save_video_original # set True to save the video stream
         self.testMode = testMode#set True for test mode
         self.IDInfo = dict()
-        
-        #load model
-        # darknet.set_gpu(gpu)#set the gpu you want to use
-        # self.network, self.class_names, self.class_colors = darknet.load_network(
-        #     config_file = self.config_file,
-        #     data_file = self.data_file,
-        #     weights = self.weights_file)
-        
-        
-        #load yolox model and predictor
-        self.predictor = loadPredictor(args)
+        self.testWithTxt = False
+        #load yolox model and predictor at start()
+        self.predictor = None
+        self.args = args
         
         self.social_distance = social_distance
         self.draw_socialDistanceArea=draw_socialDistanceArea
@@ -322,6 +243,7 @@ class YoloDevice:
         self.ret = False
         self.H = int(self.cap.get(4))
         self.W = int(self.cap.get(3))      
+        self.FPS = self.cap.get(cv2.CAP_PROP_FPS)
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')              
         self.frame_id = 0
         self.obj_id = None
@@ -329,21 +251,35 @@ class YoloDevice:
         
         
         #web streaming image
-        self.bboxImage = np.zeros((1080,1920,4))
-        self.socialDistanceImage = np.zeros((1080,1920,4))
-        self.infoImage = np.zeros((1080,1920,4))
+        self.bboxImage = np.zeros((self.H,self.W,4))
+        self.socialDistanceImage = np.zeros((self.H,self.W,4))
+        self.infoImage = np.zeros((self.H,self.W,4))
         
         #people counting
-        self.totalIn = 0#count how many people enter the area totally
-        self.currentIn = 0#how many people are in the area right now
+        self.totalIn = 0
+        self.currentIn = 0
+        self.totalOut = 0
         self.draw_square = draw_square
-        # self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
-        self.countInArea_cal = np.array([[0, 1100],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1100, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1100] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
-        self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1609, 578], [1980, 728], [1980, 1080]])
-
-        self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
-        self.suspiciousArea_L = np.array([[1080, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])
-        self.mergeIDArea = np.array([[144, 1074],[511, 465],[1099, 485],[1643, 1080]])#only in this area id can merge
+        if "square" in video_url:
+            self.countInArea_cal = np.array([[0, 1100],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1100, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1100] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+            self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1609, 578], [1980, 728], [1980, 1080]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+            self.suspiciousArea = np.array([[1070, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])#This area use to handle occlusion when people get in square
+            self.mergeIDArea = np.array([[144, 1074],[511, 465],[1099, 485],[1643, 1080]])#only in this area id can merge
+            self.vertex = [[180, 873],[483, 266],[1124, 289],[1769, 870]]
+        elif "FirstRestaurant_2" in video_url:
+            self.countInArea_cal = np.array([[441, 600],[620, 280],[820, 280],[946, 597],])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+            self.countOutArea = np.array([[300, 712],[470, 320],[569, 320],[588, 250],[834, 250],[861, 320],[988, 320],[1078, 707],])
+            self.suspiciousArea = None#This area use to handle occlusion when people get in square
+            self.mergeIDArea = None#only in this area id can merge
+            
+        elif "FirstRestaurant_1" in video_url:
+            self.countInArea_cal = np.array([[16, 750],[16, 445],[79, 326],[380, 200],[463, 0],[1280, 280],[1170, 790], [880, 850]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
+            self.countOutArea = np.array([[-18, 990], [-18, 283],[318, 130],[369, 144],[463, 0],[1280, 278],[1280, 750],[1080, 1050]])
+            self.suspiciousArea = None#This area use to handle occlusion when people get in square
+            self.mergeIDArea  = None#only in this area id can merge
+            
+        
+        
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.suspiciousAreaIDTracker = dict()
@@ -355,10 +291,9 @@ class YoloDevice:
         self.mergedIDs = dict()
         self.AllIDtracker = dict()
         self.unreliableID = list()
-        
+        '''
         #social distance
         self.socialDistanceArea = np.array([ [378, 1080],[585, 345],[939, 339],[1590, 1080] ], np.float32)
-        # self.realHeight, self.realWidth = 15.75, 5.6#m
         self.realHeight, self.realWidth = 19.97, 5.6#m
         self.transformImageHeight, self.transformImageWidth = 1000, 350
         transformPoints = np.array([[0, self.transformImageHeight], [0, 0], [self.transformImageWidth, 0], [self.transformImageWidth, self.transformImageHeight]], np.float32)
@@ -368,24 +303,8 @@ class YoloDevice:
         # get transform matrix
         self.M = cv2.getPerspectiveTransform(self.socialDistanceArea, transformPoints)
         self.realHeightPerPixel, self.realWidthPerPixel = (self.realHeight / self.transformImageHeight), (self.realWidth / self.transformImageWidth)
-        
-        
-        #pose estimation
-        self.mpDraw = mp.solutions.drawing_utils
-        self.mpPose = mp.solutions.pose
-        self.pose = self.mpPose.Pose()
-        self.detected_landmark = 0
-        self.good_landmark = 0
-        
-        
-        #face detection
-        self.mp_face_detection = mp.solutions.face_detection
-        self.mp_drawing = mp.solutions.drawing_utils
-        
-        
-        
+        '''
         #fps calculate
-        # self.FPS = FPS()
         self.timer = Timer()
         
         
@@ -404,8 +323,8 @@ class YoloDevice:
             video_path_original = os.path.join(video_path_original, get_current_hour_string() +"_"+ self.alias + ".mp4") 
             video_path_draw = os.path.join(video_path_draw, get_current_hour_string() +"_"+ self.alias + ".mp4")
         
-        self.frame_original = cv2.VideoWriter(self.video_output_name, self.fourcc, 20.0, (self.W, self.H))
-        self.frame_draw = cv2.VideoWriter(self.video_output_draw_name, self.fourcc, 20.0, (self.W, self.H))  
+        self.frame_original = cv2.VideoWriter(self.video_output_name, self.fourcc, self.FPS, (self.W, self.H))
+        self.frame_draw = cv2.VideoWriter(self.video_output_draw_name, self.fourcc, self.FPS, (self.W, self.H))  
         if os.path.exists(video_path_original):
             os.remove(video_path_original)     
             
@@ -427,6 +346,8 @@ class YoloDevice:
     def start(self):
         self.th = []
         self.write_log("[Info] Start the program.")
+        if not self.testWithTxt:
+            self.predictor = loadPredictor(self.args)
         
         if self.testMode:#test mode don't use multi threading
             # self.FPS.start()
@@ -457,6 +378,7 @@ class YoloDevice:
                 self.cap = cv2.VideoCapture(self.video_url)#reread the video
                 self.totalIn = 0
                 self.currentIn = 0
+                self.totalOut = 0
             else:
                 print("[Info] Video detection is finished...")
                 self.stop()            
@@ -504,7 +426,7 @@ class YoloDevice:
         
         while getattr(t, "do_run", True):
             if self.frame_id % 10000 == 0:
-                logger.info('Processing frame {})'.format(self.frame_id)) 
+                logger.info('Processing frame {}, FPS={})'.format(self.frame_id, cnt / (time.time()-last_time))) 
             cnt+=1 
             
             if not self.is_threading:
@@ -526,45 +448,45 @@ class YoloDevice:
                 continue
             
             #reset web streaming image
-            self.bboxImage = np.zeros((1080,1920,4))
-            self.socialDistanceImage = np.zeros((1080,1920,4))
-            self.infoImage = np.zeros((1080,1920,4))
+            self.bboxImage = np.zeros((self.H,self.W,4))
+            self.socialDistanceImage = np.zeros((self.H,self.W,4))
+            self.infoImage = np.zeros((self.H,self.W,4))
                 
-            #do yolo prediction and tracking
-            
-            outputs, img_info = self.predictor.inference(self.frame, self.timer)
-            
+            detections = []
             predict_time = time.time() # get start predict time
-            # detections = darknet.detect_image(self.network, self.class_names, darknet_image, thresh=self.thresh)#[className, score, (cx, cy, W, H)]
+            
+            if self.testWithTxt:#use txt detections:
+                txtDets = getDets(self.txtDets, self.frame_id)
+                for frameID, id, cx, cy, w, h, score in txtDets:
+                    detections.append(['person', score, [cx, cy, w, h], id])
+                
+                self.detect_target = detections
+                self.detect_target = detect_filter(detections, self.target_classes, self.vertex, True)
+                
+            else:#use yolo detections
+                outputs, img_info = self.predictor.inference(self.frame, self.timer)
+                if outputs[0] is not None:
+                    for x1, y1, x2, y2, obj_conf, class_conf, class_pred in outputs[0].cpu().detach().numpy():
+                        x1 = x1 / 800 * self.H
+                        y1 = y1 / 1440 * self.W
+                        x2 = x2 / 800 * self.H
+                        y2 = y2 / 1440 * self.W
+                        w = x2 - x1
+                        h = y2 - y1
+                        cx = x1 + w / 2
+                        cy = y1 + h / 2
+                        detections.append([class_pred, obj_conf, (cx, cy, w, h)])
+            
+            
+                # filter the scope and target class   
+                self.detect_target = detect_filter(detections, self.target_classes, self.vertex, True)
+                
+                
+                self.detect_target = self.object_tracker_BYTE()
+            
             predict_time_sum +=  (time.time() - predict_time) # add sum predict time
             
-            # darknet.free_image(darknet_image)
-            detections = []
-            for x1, y1, x2, y2, obj_conf, class_conf, class_pred in outputs[0].cpu().detach().numpy():
-                x1 = x1 / 800 * 1080
-                y1 = y1 / 1440 * 1920
-                x2 = x2 / 800 * 1080
-                y2 = y2 / 1440 * 1920
-                W = x2 - x1
-                H = y2 - y1
-                cx = x1 + W / 2
-                cy = y1 + H / 2
-                detections.append([class_pred, obj_conf, (cx, cy, W, H)])
-                
-            
-                
-            # filter the scope and target class   
-            self.detect_target = detect_filter(detections, self.target_classes, self.vertex)
-              
-            
-            
-            # if self.obj_trace and len(self.detect_target) > 0: # draw the image with object tracking           
-                # self.drawImage = self.object_tracker(self.drawImage)
-            self.drawImage = self.object_tracker_BYTE(self.drawImage)
-                # self.drawImage = self.object_tracker_deep_sort(frame_rgb)
-                # self.drawImage = self.object_tracker_motpy(frame_rgb)
-            # elif self.draw_bbox:
-            #     self.drawImage = draw_boxes(detections, self.drawImage, self.class_colors, self.target_classes, self.vertex)
+            self.drawImage = drawTracks(self.drawImage, self.detect_target)
             
             save_path_img = None
             save_path_img_orig = None
@@ -576,20 +498,17 @@ class YoloDevice:
                 self.drawImage = draw_polylines(self.drawImage, self.vertex)  # draw the polygon
                 
             if self.draw_square:
-                cv2.polylines(self.drawImage, pts=[self.countInArea_draw], isClosed=True, color=(0,0,255), thickness=3)#draw square area
                 cv2.polylines(self.drawImage, pts=[self.countOutArea], isClosed=True, color=(255,0,0), thickness=3)#draw square area
+                cv2.polylines(self.drawImage, pts=[self.countInArea_cal], isClosed=True, color=(0,0,255), thickness=3)#draw square area
                 
                 
             if self.draw_socialDistanceArea:
                 socialDistanceArea_int = np.array(self.socialDistanceArea, np.int32)
                 cv2.polylines(self.drawImage, pts=[socialDistanceArea_int], isClosed=True, color=(0,255,255), thickness=3)#draw square area
             
-            # cv2.polylines(self.drawImage, pts=[self.suspiciousArea], isClosed=True, color=(0,255,0), thickness=3)#draw square area
-            cv2.polylines(self.drawImage, pts=[self.suspiciousArea_L], isClosed=True, color=(0,255,0), thickness=3)#draw square area
             
-
-            # if self.draw_pose and len(self.detect_target) > 0:
-            #     image = self.pose_estimation(image)
+            # cv2.polylines(self.drawImage, pts=[self.suspiciousArea], isClosed=True, color=(0,255,0), thickness=3)#draw square area
+            
                 
             self.drawImage = self.face_detection(frame_rgb, self.drawImage)
             
@@ -604,7 +523,7 @@ class YoloDevice:
                 save_path_img = self.save_img_draw(self.drawImage)
                 
             self.drawImage = self.draw_info(self.drawImage)
-            self.saveDetectionsWithJson(self.detect_target)     
+            # self.saveDetectionsWithJson(self.detect_target)     
             
             # save oiginal image
             if self.save_img_original and len(self.detect_target) > 0:
@@ -632,56 +551,12 @@ class YoloDevice:
                 predict_time_sum = 0
                 
             self.frame_id += 1
-            # self.FPS.update()
             
-    #https://www.youtube.com/watch?v=brwgBf6VB0I
-    def pose_estimation(self, image):
-        for index, detection in enumerate(self.detect_target):#for each detection
-            
-            left, top, right, bottom = darknet.bbox2points(detection[2])
-            left, top, right, bottom = left-30, top-30, right+30, bottom+30
-            frame = cv2.cvtColor(image[top:bottom, left:right], cv2.COLOR_BGR2RGB)#change image from bgr to rgb
-            result = self.pose.process(frame)#crop the detected area to do pose estimation
-            
-            if(result.pose_landmarks):
-                self.detected_landmark += 1
-                # print(result.pose_landmarks)
-                self.mpDraw.draw_landmarks(image[top:bottom, left:right], result.pose_landmarks, self.mpPose.POSE_CONNECTIONS)
-                landmark = result.pose_landmarks.landmark
-                twoHeelsDetected = 0<= landmark[29].x <=1 and 0<= landmark[29].y <=1 and 0<= landmark[30].x <=1 and 0<= landmark[30].y <=1
-                twoFeetDetected = 0<= landmark[31].x <=1 and 0<= landmark[31].y <=1 and 0<= landmark[32].x <=1 and 0<= landmark[32].y <=1
-                
-                
-                boxWidth, boxHeight = detection[2][2:4]
-                
-                centerX, centerY = None, None
-                if(twoHeelsDetected):
-                    self.good_landmark += 1
-                    #change center to be the center of two heels
-                    centerX = ( (landmark[29].x + landmark[30].x)/2 ) * boxWidth + left + 30
-                    centerY = ( (landmark[29].y + landmark[30].y)/2 ) * boxHeight + top + 30
-                    
-                elif(twoFeetDetected):
-                    self.good_landmark += 1
-                    #change center to be the center of two feet
-                    centerX = ( (landmark[31].x + landmark[32].x)/2 ) * boxWidth + left + 30
-                    centerY = ( (landmark[31].y + landmark[32].y)/2 ) * boxHeight + top + 30
-                
-                
-                self.detect_target[index].append([centerX, centerY])
-                if self.draw_pose and centerX is not None and centerY is not None:#center not None
-                    cv2.circle(image, (int(centerX), int(centerY)), 8, (255,0,0), -1)
-        return image
-    
     def draw_info(self, image):
         #draw people counting info into image
         info = [
-        # ("Exit", totalUp),
         ("Total Visitors", self.totalIn),
         ("Current", self.currentIn)
-        # ("Status", status),
-        # ("total lanmarks", self.detected_landmark),
-        # ("good lanmarks", self.good_landmark)
         ]
 
         info2 = [
@@ -704,18 +579,16 @@ class YoloDevice:
             
         return image
     
-    
     def people_counting(self):
         
-        self.__suspiciousAreaHandling()
-        self.__checkInreliableIDs()
-        if 0 < len(self.detect_target) <= 5:
+        if self.suspiciousArea is not None:
+            self.__suspiciousAreaHandling()
+        #self.__checkUnreliableIDs()
+        if 0 < len(self.detect_target) <= 10 and self.mergeIDArea is not None:
+        
+            # pass
             self.__mergeID()
             self.__splitID()
-        #     self.tracker.max_age = 10
-            
-        # else:
-        #     self.tracker.max_age = 50
             
         for det in self.detect_target:
             if len(det) < 5 or None in det[4]:#center not None
@@ -726,8 +599,8 @@ class YoloDevice:
             countInAreaPolygon = Polygon(self.countInArea_cal)
             countOutAreaPolygon = Polygon(self.countOutArea)
             currentCentroid = Point((center_x, center_y))
-            if center_x <= 0 or center_x >= self.W or center_y <= 0 or center_y >= self.H:#out of boundary
-                continue
+            # if center_x <= 0 or center_x >= self.W or center_y <= 0 or center_y >= self.H:#out of boundary
+            #     continue
             
             if self.lastCentroids.get(id, None) is None:#Don't have this id in last frame
                 
@@ -749,13 +622,14 @@ class YoloDevice:
                                           "wh":(w, h),
                                           "countIn":countIn,#set id not counted
                                           "countOut":countOut,
-                                          "outIn":outIn
+                                          "outIn":outIn,
+                                          "InFrame":0,
+                                          "OutFrame":0,
                                           }
                 
                 continue
             
-            
-            
+
             
             lastCentroid = self.lastCentroids[id]["center"]
             lastCentroid = Point(lastCentroid)
@@ -772,28 +646,26 @@ class YoloDevice:
             isGetIn = not lastCentroid.within(countInAreaPolygon) and currentCentroid.within(countInAreaPolygon) and not self.lastCentroids[id]["countIn"]
             #last centroid in square and current centroid not in square
             isGetOut = lastCentroid.within(countOutAreaPolygon) and not currentCentroid.within(countOutAreaPolygon) and not self.lastCentroids[id]["countOut"]
-            OutAndIn = not self.lastCentroids[id]["countIn"] and self.lastCentroids[id]["countOut"] and not self.lastCentroids[id]["outIn"]
+            OutAndIn = self.lastCentroids[id]["OutFrame"] - self.lastCentroids[id]["InFrame"]  <= 30 and isGetIn
             
             if isGetIn:#get in and not counted
-                # if self.mergedIDs.get(id, None) is not None:#this id represent multi ids
-                #     print("Normal merge add:", self.mergedIDs[id])
-                #     lenOfID = len(self.mergedIDs[id])
-                #     self.totalIn += lenOfID
-                #     self.currentIn += lenOfID
-                #     for i in self.mergedIDs[id]:
-                #         self.lastCentroids[i]["countIn"] = True
-                # else:
-                print("Normal add:", id)
+                print(f"Normal add:{id}, frameId:{self.frame_id}")
                 self.totalIn += 1
                 self.currentIn += 1
                 self.lastCentroids[id]["countIn"] = True
                 self.lastCentroids[id]["countOut"] = False
+                self.lastCentroids[id]["InFrame"] = self.frame_id
+                
+                if id in self.unreliableID:
+                    print("unreliableID in {i}")
                 
                 
-            if OutAndIn:
-                print("Out and in", id)
-                self.currentIn += 1
-                self.lastCentroids[id]["outIn"] = True
+            # if OutAndIn:
+            #     print("Out and in", id)
+            #     self.currentIn -= 1
+            #     self.totalIn -= 1
+            #     self.totalOut -= 1
+                # self.lastCentroids[id]["outIn"] = True
                 
                 
             if isGetOut:
@@ -802,24 +674,31 @@ class YoloDevice:
                     for i in self.mergedIDs[id]:
                         if not self.lastCentroids[i]["countOut"]:#id not count out
                             self.lastCentroids[i]["countOut"] = True
+                            self.totalOut += 1
                             self.currentIn -= 1
+                            
+                        if i in self.unreliableID:
+                            print("unreliableID out {i}")
+                            
                             # print(f"id={i}, countOut={self.lastCentroids[i]}")
                         
                 else:
-                    print("Normal out:", id)
+                    print(f"Normal out:{id}, frameId:{self.frame_id}")
+                    self.totalOut += 1
                     self.currentIn -= 1
                     
                     # self.lastCentroids[id]["countIn"] = False
                 self.lastCentroids[id]["countOut"] = True
                 self.lastCentroids[id]["outIn"] = True
                 self.lastCentroids[id]["countIn"] = False 
+                self.lastCentroids[id]["OutFrame"] = self.frame_id
+                
                 
                 
             self.lastCentroids[id]["center"] = (center_x, center_y)#update id's center
         
         self.lastDetections = self.detect_target
                     
-    
     def __suspiciousAreaHandling(self):
         '''
         This function can break down into three parts.
@@ -846,8 +725,7 @@ class YoloDevice:
             id = det[3]
             w, h = det[2][2:]
             currentCentroid = Point((x, y))
-            # suspiciousAreaPolygon = Polygon(self.suspiciousArea)
-            suspiciousAreaPolygon = Polygon(self.suspiciousArea_L)
+            suspiciousAreaPolygon = Polygon(self.suspiciousArea)
             
             detections[id] = det#save as dict for later
             IDsInThisFrame.add(id)
@@ -864,7 +742,9 @@ class YoloDevice:
                                               "wh":(w,h),
                                           "countIn":True,
                                           "countOut":False,
-                                          "outIn":False
+                                          "outIn":False,
+                                          "InFrame":self.frame_id,
+                                          "OutFrame":0
                                           }#set id not counted
                 
                     ############################
@@ -873,6 +753,7 @@ class YoloDevice:
                     #FPS depends
                     if self.IDSwitch.get("frame", 20) < 10 and self.IDSwitch.get("amount", 0) > 0:
                         self.totalIn -= 1
+                        self.totalOut += 1
                         self.currentIn -= 1
                         self.IDSwitch["amount"] -= 1
                         print(f"Id switch:{id}")
@@ -997,35 +878,30 @@ class YoloDevice:
                         continue
                     x2, y2 = thisFrameDetections[j][:2]
                     distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
-                    
-                    # spiltID = list(self.mergedIDs[j])[1]
-    
-                    # canSpilt = distance < mergeDistanceThreshold and self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1 and spiltID != j
                     if distance < mergeDistanceThreshold:#disappear person is very close to this person. ID merged
                         if self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1:#new id split from here
                             spiltID = list(self.mergedIDs[j])[1]
                             if spiltID == j:#same id
                                 continue
-                    # if canSpilt:
                             self.mergedIDs[j].remove(spiltID)#remove spilt id from set
                             splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
                             self.detect_target[splitIDIndex][3] = spiltID#update this frame new id to split id
                             print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
 
 
-        #split flash id
+        #split unreliable id
         for ID in self.mergedIDs:
-            overlapID = self.mergedIDs[ID].intersection(set(self.unreliableID))#if merged IDS have flash ID
+            overlapID = self.mergedIDs[ID].intersection(set(self.unreliableID))#if merged IDS have unreliable ID
             if len(overlapID) != 0:
-                for removeID in overlapID:#remove flash ID ine by one
+                for removeID in overlapID:#remove unreliable ID one by one
                     if removeID == ID:#don't remove itself
                         continue
                     self.mergedIDs[ID].remove(removeID)#remove spilt id from set
                     
-                    print(f"split flash ID {removeID} from {ID}, {self.mergedIDs[ID]}")
+                    print(f"split unreliable ID {removeID} from {ID}, {self.mergedIDs[ID]}")
         # self.lastDetections = self.detect_target
     
-    def __checkInreliableIDs(self):
+    def __checkUnreliableIDs(self):
         '''
         input yolo detections
         check unreliableIDs with few frames
@@ -1047,6 +923,7 @@ class YoloDevice:
             if self.AllIDtracker[ID]["counted"] >= TRACK_FRAMES:
                 if self.AllIDtracker[ID]["tracked"] < COUNTED_THRESHOLD:#flash id
                     self.unreliableID.append(ID)
+                    print(f"unreliable ID:{ID}")
                     
                 del self.AllIDtracker[ID]#del ID
 
@@ -1172,7 +1049,7 @@ class YoloDevice:
                 
         return drawImage
     
-    def object_tracker_BYTE(self, image):
+    def object_tracker_BYTE(self):
         #[className, score, (cx, cy, W, H)] -> [x1, y1, x2, y2, score]
         
         dets = list()
@@ -1190,10 +1067,7 @@ class YoloDevice:
             dets = [[1, 1, 1, 1, 0]]
         
         dets = np.array(dets, dtype=float)
-        
-        # print(dets.shape)
-        online_targets = self.tracker.update(dets, [1080, 1920], [1080, 1920])
-        # logger.info(f"{online_targets}")
+        online_targets = self.tracker.update(dets, [self.H, self.W], [self.H, self.W])
         
         detWithID = []
         for track in online_targets:
@@ -1206,15 +1080,13 @@ class YoloDevice:
                 self.bbox_colors[id] = (random.randint(0, 255),
                                         random.randint(0, 255),
                                         random.randint(0, 255))
-            cv2.rectangle(image, (int(t), int(l)), (int(t + w), int(l + h)), self.bbox_colors[id], 3)
-            cv2.putText(image, str(id), (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
-            
             # save results
             detWithID.append(['person', track.score, [cx, cy, w, h], id])
 
-        self.detect_target = detWithID
-        return image
-        
+        return detWithID
+
+       
+    
     def set_listener(self, on_detection):
         self.detection_listener = on_detection
         
@@ -1258,18 +1130,16 @@ class YoloDevice:
             for t in self.th:
                 t.do_run = False
     #             t.join()
-        # self.FPS.stop()
         
         self.write_log("[Info] Stop the program.")
         self.cap.release()
-        # print(f"[Info] Avg FPS:{self.FPS.fps()}.")
             
         print('[Info] Stop the program: Group:{group}, alias:{alias}, URL:{url}'\
               .format(group=self.group, alias=self.alias, url=self.video_url))    
         
         #save detections info to json file
-        with open(self.output_dir_json, "w") as outfile:
-            json.dump(self.IDInfo, outfile)      
+        # with open(self.output_dir_json, "w") as outfile:
+        #     json.dump(self.IDInfo, outfile)      
             
         
         
@@ -1330,7 +1200,7 @@ class YoloDevice:
             
         if not os.path.exists(video_path_name):
             if self.is_threading: create_dir(video_path)
-            self.frame_draw = cv2.VideoWriter(video_path_name, self.fourcc, 20.0, (self.W, self.H))
+            self.frame_draw = cv2.VideoWriter(video_path_name, self.fourcc, self.FPS, (self.W, self.H))
             print("[Info] {alias} Set video draw writer. Height={H}, Width={W}".format(alias=self.alias, H=self.H, W=self.W))  
             
         self.frame_draw.write(frame)
@@ -1372,76 +1242,15 @@ class YoloDevice:
         
         return img_path_name
 
-    def test(self, video, args):#track not used
-        if os.path.isfile(video):
-            pathlib.Path(self.output_dir).mkdir(parents=True, exist_ok=True)
-            self.__testWithFile(video, args)
-        else:#folder
-            self.__testWithFolder(video, args)
-
-    def __testWithFolder(self, videoFolder, args):
-        shutil.rmtree(self.output_dir, ignore_errors=True)
-        os.mkdir(self.output_dir)
+    def test(self, video, args, testWithTxt = True, txtFile = ""):#track not used
+        pathlib.Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+        self.__testWithFile(video, args, testWithTxt, txtFile)
         
-        videoFiles = os.listdir(videoFolder)
-        groundTruth = []#number of people get in square
-        predictNumber = []
-        error = []
-        # print(sorted(videoFiles))
-        print("Testing")
-        errorInfo = dict()
-        
-        for video in sorted(videoFiles):
-            print(f"Test {video}")
-            self.alias = video.split(".")[0]
-            videoPath = os.path.join(videoFolder, video)
-            self.cap = cv2.VideoCapture(videoPath)
-            FPS = self.cap.get(cv2.CAP_PROP_FPS)
-            
-            #BYTE Tracker
-            self.tracker = BYTETracker(args)
-            print(f"thresh = {self.thresh} BYTE:age={30}")
-            
-            self.totalIn = 0#reset counter
-            self.currentIn = 0
-            self.lastCentroids = dict()#reset people counting info
-            self.suspiciousAreaIDTracker = dict()
-            
-            
-            GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
-            GTNumberCurrent = int(video.split('.')[0].split('__')[-1])
-            groundTruth.append(GTNumberIn)
-            self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '_output_draw.mp4')         
-            
-            
-            self.start()#start video predict
-            
-            predictNumber.append(self.totalIn)
-            
-            if self.totalIn != GTNumberIn:
-                errorInfo[video] = {
-                    "GT_TotalIn":GTNumberIn,
-                    "Pre__TotalIn":self.totalIn,
-                    "GT_Current":GTNumberCurrent,
-                    "Pred_Current":self.currentIn
-                }
-                error.append(abs(GTNumberIn - self.totalIn))
-            
-            # print(groundTruth)
-            # print(predictNumber)
-            
-            msg = ('-----------------------------------------\n'
-                    f'Ground truth:{sum(groundTruth)}\n'
-                    f'Predict:{sum(predictNumber)}\n'
-                    f'Error:{sum(error)/sum(groundTruth)}\n'
-                    '-----------------------------------------'
-            )
-                    
-            print(msg)
-            print(errorInfo)
-        
-        
-    def __testWithFile(self, video, args):
+          
+    def __testWithFile(self, video, args, testWithTxt = True, txtFile = ""):
+        self.testWithTxt = testWithTxt
+        if self.testWithTxt:
+            self.txtDets = getNpData(txtFile)
         
         groundTruth = []#number of people get in square
         predictNumber = []
@@ -1451,20 +1260,20 @@ class YoloDevice:
         print(f"Test {video}")
         self.alias = video.split("/")[-1].split(".")[0]
         self.cap = cv2.VideoCapture(video)
-        FPS = self.cap.get(cv2.CAP_PROP_FPS)
-        # print(FPS)
+        self.FPS = self.cap.get(cv2.CAP_PROP_FPS)
         self.tracker = BYTETracker(args)
-        print(f"thresh = {self.thresh} BYTE:age={args.track_buffer}")
+        print(f"thresh = {self.thresh} BYTE:age={args.track_buffer}  {self.FPS=}")
         
         
         self.totalIn = 0#reset counter
         self.currentIn = 0
+        self.totalOut = 0
         self.lastCentroids = dict()#reset people counting info
         self.suspiciousAreaIDTracker = dict()
         
-        
+        # logger.info(video)
         GTNumberIn = int(video.split('.')[0].split('__')[-2])#get the ground truth number of the video
-        GTNumberCurrent = int(video.split('.')[0].split('__')[-1])
+        GTNumberOut = int(video.split('.')[0].split('__')[-1])
         groundTruth.append(GTNumberIn)
         self.video_output_draw_name = os.path.join(self.output_dir, self.alias + '_output_draw.mp4')         
         
@@ -1477,16 +1286,16 @@ class YoloDevice:
         errorInfo[video] = {
             "GT_TotalIn":GTNumberIn,
             "Pre__TotalIn":self.totalIn,
-            "GT_Current":GTNumberCurrent,
-            "Pred_Current":self.currentIn
+            "GT_Out":GTNumberOut,
+            "Pred_Out":self.totalIn - self.currentIn,
+            "out":self.totalOut,
         }
         error.append(abs(GTNumberIn - self.totalIn))
         #save evaluation result to json file
-        with open("evaluation_BYTE.json", 'a+') as outFile:
+        with open(f"evaluation_BYTE_{self.args.exp}.json", 'a+') as outFile:
             outFile.seek(0)
             config = f"{args.yolo_thresh=},{args.track_thresh=},{args.track_buffer=},{args.match_thresh=}"
             data = dict()
-            print(f"{data=}, {config=}")
             try:
                 data = json.load(outFile)
                 if(config not in data):#data do not have this config data
@@ -1563,8 +1372,7 @@ class YoloDevice:
                 
                     
                 
-                progress.update(1)
-        
+                progress.update(1) 
         
     def generateTrainTxt(self, dataFolder, valSplit=0.2, testSplit=0.1):
         print(dataFolder)
@@ -1595,8 +1403,7 @@ class YoloDevice:
         for i in labeledData[valIndex:]:
             testFile.write(os.path.join(dataFolder, i)+'\n')
             
-        testFile.close()
-        
+        testFile.close()  
         
     def saveDetectionsWithJson(self, detections):
         for det in detections:

@@ -23,10 +23,9 @@ def make_parser():
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
 
-    parser.add_argument(
-        #"--path", default="./datasets/mot/train/MOT17-05-FRCNN/img1", help="path to images or video"
-        "--path", default="./videos/palace.mp4", help="path to images or video"
-    )
+    parser.add_argument("--txt", action="store_true", help="test with txt detections")
+    parser.add_argument("--txtFile", default="", help="txt detections file")
+    
     parser.add_argument("--camid", type=int, default=0, help="webcam demo camera id")
     parser.add_argument(
         "--save_result",
@@ -49,8 +48,8 @@ def make_parser():
         type=str,
         help="device to run our model, can either be cpu or gpu",
     )
-    parser.add_argument("--conf", default=None, type=float, help="test conf")
-    parser.add_argument("--nms", default=None, type=float, help="test nms threshold")
+    parser.add_argument("--conf", default=0.01, type=float, help="test conf")
+    parser.add_argument("--nms", default=0.7, type=float, help="test nms threshold")
     parser.add_argument("--tsize", default=None, type=int, help="test img size")
     parser.add_argument("--fps", default=30, type=int, help="frame rate (fps)")
     parser.add_argument(
@@ -84,6 +83,7 @@ def make_parser():
     )
     parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
     parser.add_argument("--mot20", dest="mot20", default=False, action="store_true", help="test mot20.")
+    parser.add_argument("--exp", default="", help="video save folder")
     return parser
 
 
@@ -99,10 +99,11 @@ yolo1 = YoloDevice(
         # weights_file = 'darknet/backup/yolov4-preson_last.weights',
         data_file = './cfg_person/person.data',
         thresh = args.yolo_thresh,
-        output_dir = 'videoTest_BYTE',
+        output_dir = f'videoTest_{args.exp}',
         video_url = args.video,
         is_threading = False,
-        vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
+        # vertex = [[0, 1080],[0, 764],[544, 225],[1014, 229],[1920, 809],[1920, 1080]],
+        vertex = None,
         draw_polygon=False,
         alias=Path(args.video).name,
         display_message = False,
@@ -135,7 +136,7 @@ class Arg():
         self.mot20 = False
 
 
-# yolo1.test("oneVideo43")
-# yolo1.test("videoClips")
+
 BYTE_args = Arg(track_thresh=args.track_thresh, track_buffer=args.track_buffer, match_thresh=args.match_thresh, yolo_thresh=args.yolo_thresh)
-yolo1.test(args.video, BYTE_args)
+print(args.txt, args.txtFile)
+yolo1.test(args.video, BYTE_args, args.txt, args.txtFile)

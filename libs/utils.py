@@ -6,29 +6,45 @@ import shutil
 import sys
 import matplotlib.path as mplPath
 
-def detect_filter(detections, target_classes, vertex):
+def detect_filter(detections, target_classes, vertex, only_detect_center_bbox=False):
+    """
+      Filter the non-target objects and target objects which outside the vertex.
+      
+      Args:
+        detections: [(left, top, right, bottom), (left2, top2, right2, bottom2), ...]
+        target_classes: ["target1", "target2", ...]
+        vertex: [(x1,y1), (x2,y2), (x3,y3), ...]
+        only_detect_center_bbox: only detect center point of bbox or containing four corner of bbox.
+    """
     results = []
     
-    for label, confidence, bbox in detections:        
+    for det in detections:        
+        label, confidence, bbox = det[0], det[1], det[2]
         left, top, right, bottom = bbox2points(bbox)
         
-        # filter the target class
-        # if target_classes != None:
-        #     if label not in target_classes:
-        #         continue            
+        # Filter the target class
+        if target_classes != None:
+            if label not in target_classes:
+                continue            
         
-        #if  the bbox is too small or not expected size scale
-        x, y, w, h, = bbox
-        scale = h / w 
-        # if(w < 60 or h < 60):
-        #     continue
-        
-        # filter the bbox base on the vertex
+        # Filter the bbox outside the vertex
         if vertex == None:            
-            results.append((label, confidence, bbox, None))
-        elif is_in_hull(vertex,(left, top)) or is_in_hull(vertex,(left, bottom))\
-            or is_in_hull(vertex,(right, top)) or is_in_hull(vertex,(right, bottom)):          
-            results.append((label, confidence, bbox, None))
+            results.append(det)
+        else:
+            center_x = (left + right)/2
+            center_y = (top + bottom)/2
+            
+            # Only detect bounding box center point
+            if only_detect_center_bbox:
+                if is_in_hull(vertex,(center_x, center_y)):          
+                    results.append(det)
+            else:
+                if is_in_hull(vertex,(left, top))\
+                    or is_in_hull(vertex,(left, bottom))\
+                    or is_in_hull(vertex,(right, top))\
+                    or is_in_hull(vertex,(right, bottom))\
+                    or is_in_hull(vertex,(center_x, center_y)):          
+                    results.append(det)
 
     return  results
     
@@ -113,8 +129,43 @@ def restart():
 
 # https://www.tutorialspoint.com/what-s-the-fastest-way-of-checking-if-a-point-is-inside-a-polygon-in-python
 # Returns true if the point p lies 
-# inside the polygon[] with n vertices
+# inside the polygon[] with n verticesdef is_in_hull(vertex:list, p:tuple) -> bool:    
+    poly_path = mplPath.Path(np.array(vertex))
+    
+    return poly_path.contains_point(p)
+
+
+def getDets(dets:np.ndarray, frameID:int) -> np.ndarray:
+    indices = np.where(dets[:, 0] == frameID)
+    return dets[indices]
+
+def getNpData(filePath:str) -> np.ndarray:
+    data = open(filePath).readlines()
+    data = [i.split(',') for i in data]
+    data = np.array(data, dtype=float)
+    return data
+
+def getColor(id):
+    return ( (id * 5 + 20) %255, (id * 66 + 3) %255, (id * 50 - 1) %255)
+
+def drawTracks(image, tracks):
+    for i in tracks:
+        cx, cy, w, h = i[2]
+        id = i[3]
+        x1, y1 = int(cx - w/2), int(cy - h/2)
+        x2, y2 = int(x1 + w), int(y1 + h)
+        color = getColor(id)
+        cv2.rectangle(image, (x1, y1), (x2, y2), color, 3)
+        cv2.putText(image, str(id), (int(cx), int(cy) - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
+            
+    return image
+
+# https://www.tutorialspoint.com/what-s-the-fastest-way-of-checking-if-a-point-is-inside-a-polygon-in-python
 def is_in_hull(vertex:list, p:tuple) -> bool:    
+    """
+      Returns true if the point p inside the polygon
+    """
+    
     poly_path = mplPath.Path(np.array(vertex))
     
     return poly_path.contains_point(p)
