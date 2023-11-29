@@ -157,7 +157,7 @@ def drawTracks(image, tracks):
         color = getColor(id)
         cv2.rectangle(image, (x1, y1), (x2, y2), color, 3)
         cv2.putText(image, str(id), (int(cx), int(cy) - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
-            
+        
     return image
 
 # https://www.tutorialspoint.com/what-s-the-fastest-way-of-checking-if-a-point-is-inside-a-polygon-in-python

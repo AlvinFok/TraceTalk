@@ -1,13 +1,12 @@
-# People-Flow-System
-六燃人流系統
+# TraceTalk
 # install tutorial
 
 
 ## Step 1. 下載檔案
 ```bash=
-git clone https://github.com/AlvinFok/People-Flow-System-of-the-Sixth-Japanese-Navy-Fuel-Plant
+git clone https://github.com/AlvinFok/People-Flow-System-of-the-Sixth-Japanese-Navy-Fuel-Plant TraceTalk
 
-cd YoloTalk
+cd TraceTalk
 git clone https://github.com/AlexeyAB/darknet.git
 git clone https://github.com/ifzhang/ByteTrack.git
 ```
@@ -74,8 +73,7 @@ python3 test_BYTE_YOLOX.py --video 0325__12__12.mp4 -f ByteTrack/exps/example/mo
 - ```save_video``` (bool)： 若欲將辨識結果存成影像，則設為True。否則設為 False
 - ```auto_restart``` (bool): 若當無法讀取串流影像時，想自動重新啟動程式，則設為True。否則設為False。
 
-## Step 5: (Option) 設置IoTtalk與LineBot
-> 設置IoTTalk與LineBot的連結
+
 
 ### IoTtalk setting
 
