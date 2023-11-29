@@ -12,10 +12,8 @@ ipyfilechooser
 shapely
 flask
 tqdm
-mediapipe
 imutils
 requests
-tensorflow
 dlib
 loguru
-shapely
+

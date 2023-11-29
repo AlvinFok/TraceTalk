@@ -1,20 +1,14 @@
+import sys
+sys.path.append("/home/alvin/TraceTalk/")
 from libs.YOLOX_BYTE import YoloDevice
 import argparse
 from pathlib import Path
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--video', type=str, required=True,  help='video file or folder')
-# parser.add_argument('--yolo_thresh', type=float, default=0.4,  help='yolo threshold')
-# parser.add_argument('--track_thresh', type=float, default=0.6,  help='BYTETracker parameter')
-# parser.add_argument('--track_buffer', type=int, default=30,  help='BYTETracker parameter')
-# parser.add_argument('--match_thresh', type=float, default=0.9,  help='BYTETracker parameter')
-# parser.add_argument('--no_save_video',action='store_false' , help='save video')
 
-# args = parser.parse_args()
 
 
 def make_parser():
-    parser = argparse.ArgumentParser("ByteTrack Demo!")
+    parser = argparse.ArgumentParser("TraceTalk Test")
     
     parser.add_argument('--video', type=str, required=True,  help='video file or folder')
     parser.add_argument('--yolo_thresh', type=float, default=0.4,  help='yolo threshold')

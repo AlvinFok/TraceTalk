@@ -5,17 +5,20 @@ import time
 import cv2
 import sys
 import torch
-sys.path.append("/home/alvin/Yolotalk/ByteTrack/")
+sys.path.append("/home/alvin/TraceTalk/")
+sys.path.append("/home/alvin/TraceTalk/ByteTrack")
+
+# print(sys.path)
 
 from loguru import logger
 from pathlib import Path
 
-from yolox.data.data_augment import preproc
-from yolox.exp import get_exp
-from yolox.utils import fuse_model, get_model_info, postprocess
-from yolox.utils.visualize import plot_tracking
-from yolox.tracker.byte_tracker import BYTETracker
-from yolox.tracking_utils.timer import Timer
+from ByteTrack.yolox.data.data_augment import preproc
+from ByteTrack.yolox.exp import get_exp
+from ByteTrack.yolox.utils import fuse_model, get_model_info, postprocess
+from ByteTrack.yolox.utils.visualize import plot_tracking
+from ByteTrack.yolox.tracker.byte_tracker import BYTETracker
+from ByteTrack.yolox.tracking_utils.timer import Timer
 
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]

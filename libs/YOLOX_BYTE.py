@@ -7,6 +7,8 @@ import os
 import shutil
 import threading
 import  random
+import sys
+sys.path.append("/home/alvin/TraceTalk/ByteTrack")
 
 from tqdm import tqdm
 import pathlib

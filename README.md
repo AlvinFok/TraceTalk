@@ -1,7 +1,6 @@
 # TraceTalk
 # install tutorial
 
-
 ## Step 1. 下載檔案
 ```bash=
 git clone https://github.com/AlvinFok/People-Flow-System-of-the-Sixth-Japanese-Navy-Fuel-Plant TraceTalk
@@ -49,7 +48,12 @@ python3 test_BYTE_YOLOX.py --video 0325__12__12.mp4 -f ByteTrack/exps/example/mo
 ```
 
 執行完成後，會自動產生demo資料夾，儲存辨識結果
-
+## 可以會遇到的錯誤
+```numpy>=1.20```到以下位置把np.float->float
+```python
+ByteTrack/yolox/tracker/byte_tracker.py
+ByteTrack/yolox/tracker/matching.py
+```
 
 ## Step 4. (Option) 設置 YoloDevice 物件參數
 > YoloTalk 提供許多參數可供設置。
@@ -73,8 +77,25 @@ python3 test_BYTE_YOLOX.py --video 0325__12__12.mp4 -f ByteTrack/exps/example/mo
 - ```save_video``` (bool)： 若欲將辨識結果存成影像，則設為True。否則設為 False
 - ```auto_restart``` (bool): 若當無法讀取串流影像時，想自動重新啟動程式，則設為True。否則設為False。
 
+### Tool usage guide
+```tools/track2txt.py```
+```bash
+python3 tools/track2txt.py -f ByteTrack/exps/example/mot/yolox_x_mix_det.py -c ByteTrack/pretrained/bytetrack_x_mot17.pth.tar --fp16 --fuse --path 0325__12__12.mp4 --savePath .
+```
+```tools/track2txtParllal.py```
+```bash
+python3 tools/track2txtParllal.py --videos videoFolder --savePath txtFolder --thread n
+```
 
-
+```tools/test_BYTE_YOLOX.py```
+```bash
+python3 tools/test_BYTE_YOLOX.py --video video -f ByteTrack/exps/example/mot/yolox_x_mix_det.py -c ByteTrack/pretrained/bytetrack_x_mot17.pth.tar --fp16 --f
+use --txt --txtFile txtFile --exp exp_name
+```
+```tools/testParllal_BYTE_YOLOX.py```
+```bash
+python3 tools/testParllal_BYTE_YOLOX.py --videoFolder videoFolder --txt --txtFolder txtFolder --thread n --exp exp_name
+```
 ### IoTtalk setting
 
 #### IDF
