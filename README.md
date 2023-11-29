@@ -99,17 +99,8 @@ python3 tools/testParllal_BYTE_YOLOX.py --videoFolder videoFolder --txt --txtFol
 ### IoTtalk setting
 
 #### IDF
-One IDF includes 4 variables:
-- **object_id:** Object name.
-- **coordinate_x:** x coordinate of the detected object.
-- **coordinate_y:** y coordinate of the detected object.
-- **pointer to yolo device DB:** when detecting object, yolo device will save the frame in the path that user set.
-
-Take yPerson-I as an example:
-![](https://i.imgur.com/MpVL2iw.png =70%x)
-
-#### Notice
-- The object type should be set according to the image above.
+SFDB-I : list of bboxes in Json format```[class, score, (x, y, w, h)]```
+Trace-I : list of bboxes with ID in Json format```[class, score, (x, y, w, h), id]```
 
 #### Model
 Chose the IDF you need, you can detect more than one object ( take yPerson-I for example ).

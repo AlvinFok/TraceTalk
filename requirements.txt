@@ -1,6 +1,5 @@
 cmake
 boost
-
 matplotlib
 numpy
 opencv-python
@@ -16,4 +15,6 @@ imutils
 requests
 dlib
 loguru
-
+scikit-image
+scikit-learn
+schedule

@@ -14,7 +14,7 @@ log.txt
 .vscode/
 darknet/
 ByteTrack/
-
+multi-object-tracker/
 #
 *.mkv*
 *.jpg

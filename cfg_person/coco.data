@@ -1,0 +1,6 @@
+classes= 80
+train  = 
+valid  = 
+names = cfg_person/coco.names
+backup = darknet/backup
+
