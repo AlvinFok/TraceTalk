@@ -272,13 +272,13 @@ class YoloDevice:
             self.countInArea_cal = np.array([[441, 600],[620, 280],[820, 280],[946, 597],])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.countOutArea = np.array([[300, 712],[470, 320],[569, 320],[588, 250],[834, 250],[861, 320],[988, 320],[1078, 707],])
             self.suspiciousArea = None#This area use to handle occlusion when people get in square
-            self.mergeIDArea = None#only in this area id can merge
+            
             
         elif "FirstRestaurant_1" in video_url:
             self.countInArea_cal = np.array([[16, 750],[16, 445],[79, 326],[380, 200],[463, 0],[1280, 280],[1170, 790], [880, 850]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.countOutArea = np.array([[-18, 990], [-18, 283],[318, 130],[369, 144],[463, 0],[1280, 278],[1280, 750],[1080, 1050]])
             self.suspiciousArea = None#This area use to handle occlusion when people get in square
-            self.mergeIDArea  = None#only in this area id can merge
+            
         
         elif "0325__12__12"  in video_url:
             self.countInArea_cal = np.array([[0, 1100],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1100, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1100] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
@@ -290,12 +290,12 @@ class YoloDevice:
             self.countInArea_cal = np.array([[1719, 1513], [1749, 910], [2551, 913], [2606, 1327]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.countOutArea = np.array([[1656, 1634], [1714, 841], [2583, 828], [2655, 1418]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.suspiciousArea = None
-            self.mergeIDArea = None
+            
         elif "場內分區熱點監測" in video_url:
             self.countInArea_cal = np.array([[1217, 1480], [1102, 1297], [1416, 1143], [1707, 1210], [1953, 1222], [2303, 1177], [2639, 1457], [2195, 1694], [1864, 1702]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.countOutArea = np.array([[1093, 1552], [1044, 1253], [1420, 1103], [1727, 1154], [1953, 1165], [2292, 1119], [2852, 1535], [2139, 1908], [1512, 1901]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.suspiciousArea = None
-            self.mergeIDArea = None
+            
             
         
         self.lastCentroids = dict()
@@ -308,8 +308,8 @@ class YoloDevice:
         self.lastDetections = list()#for merge method
         self.mergedIDs = dict()
         self.AllIDtracker = dict()
-        self.unreliableID = list()
-        
+        self.mergeDistanceThreshold = 70
+        self.splitDistanceThreshold = 100
         #social distance
         self.socialDistanceArea = np.array([ [378, 1080],[585, 345],[939, 339],[1590, 1080] ], np.float32)
         self.realHeight, self.realWidth = 19.97, 5.6#m
@@ -597,11 +597,10 @@ class YoloDevice:
         
         if self.suspiciousArea is not None:
             self.__suspiciousAreaHandling()
-        if 0 < len(self.detect_target) <= 10 and self.mergeIDArea is not None:
-        
+        if 0 < len(self.detect_target) <= 10:
             # pass
-            self.__mergeID()
-            self.__splitID()
+            self.merge()
+            self.split()
             
         for det in self.detect_target:
             if len(det) < 5 or None in det[4]:#center not None
@@ -837,74 +836,67 @@ class YoloDevice:
                 
         self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id
 
-    def __mergeID(self):
-        if len(self.detect_target) < len(self.lastDetections):#number of people in this frame is less than last frame. May be two person's merged
-            #find disappear person
-            thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
-            lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
-            thisFrameIDS = set(thisFrameDetections.keys())
-            lastFrameIDS = set(lastFrameDetections.keys())
-            disappearIDS = lastFrameIDS.difference(thisFrameIDS)
-            mergeDistanceThreshold = 70
-            mergeArea = Polygon(self.mergeIDArea)
-            for i in disappearIDS:
-                x1, y1 = lastFrameDetections[i][:2]
-                id1 = Point((x1, y1))
-                for j in lastFrameIDS:
-                    if i == j:#same id
-                        continue
-                    x2, y2 = lastFrameDetections[j][:2]
-                    id2 = Point((x2, y2))
-                    
-                    distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
-                    pointInArea = id1.within(mergeArea) and id2.within(mergeArea)
-                    if distance < mergeDistanceThreshold and pointInArea:#disappear person is very close to this person and in merge id area. ID merged
-                        if self.mergedIDs.get(j, None) is None:
-                            self.mergedIDs[j] = set([j,i])
-                        else:#already merged other ID
-                            self.mergedIDs[j].add(i)
-                        # print("ID merged:", self.mergedIDs)
+    def merge(self):
+        #find disappear person
+        thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
+        lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
+        thisFrameIDS = set(thisFrameDetections.keys())
+        lastFrameIDS = set(lastFrameDetections.keys())
+        disappearIDS = lastFrameIDS.difference(thisFrameIDS)
+        
+        for i in disappearIDS:
+            x1, y1 = lastFrameDetections[i][:2]
+            for j in lastFrameIDS:
+                if i == j:#same id
+                    continue
+                x2, y2 = lastFrameDetections[j][:2]
+                
+                distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
+                if distance < self.mergeDistanceThreshold:#disappear person is very close to this person
+                    if self.mergedIDs.get(j, None) is None:
+                        self.mergedIDs[j] = set([j,i])
+                    else:#already merged other ID
+                        self.mergedIDs[j].add(i)
+                    # print("ID merged:", self.mergedIDs)
 
-    def __splitID(self):
-        if len(self.detect_target) > len(self.lastDetections) and len(self.lastDetections) != 0:#number of people in this frame is more than last frame. May be two person's merged
-            #find new person
-            thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
-            lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
-            thisFrameIDS = set(thisFrameDetections.keys())
-            lastFrameIDS = set(lastFrameDetections.keys())
-            newIDS = thisFrameIDS.difference(lastFrameIDS)
-            mergeDistanceThreshold = 100
-            
-            thisFrameIDsList = [det[3] for det in self.detect_target]
-            # print("disappear id", disappearIDS)
-            for i in newIDS:
-                x1, y1 = thisFrameDetections[i][:2]
-                for j in thisFrameIDS:
-                    if i == j:#same id
-                        continue
-                    x2, y2 = thisFrameDetections[j][:2]
-                    distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
-                    if distance < mergeDistanceThreshold:#disappear person is very close to this person. ID merged
-                        if self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1:#new id split from here
-                            spiltID = list(self.mergedIDs[j])[1]
-                            if spiltID == j:#same id
-                                continue
-                            self.mergedIDs[j].remove(spiltID)#remove spilt id from set
-                            splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
-                            self.detect_target[splitIDIndex][3] = spiltID#update this frame new id to split id
-                            print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
+    def split(self):
+        #find new person
+        thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
+        lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
+        thisFrameIDS = set(thisFrameDetections.keys())
+        lastFrameIDS = set(lastFrameDetections.keys())
+        newIDS = thisFrameIDS.difference(lastFrameIDS)
+        
+        thisFrameIDsList = [det[3] for det in self.detect_target]
+       
+        for i in newIDS:
+            x1, y1 = thisFrameDetections[i][:2]
+            for j in thisFrameIDS:
+                if i == j:#same id
+                    continue
+                x2, y2 = thisFrameDetections[j][:2]
+                distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
+                if distance < self.splitDistanceThreshold:#new person is close to this person
+                    if self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1:#new id split
+                        spiltID = list(self.mergedIDs[j])[1]
+                        if spiltID == j:#same id
+                            continue
+                        self.mergedIDs[j].remove(spiltID)#remove spilt id from set
+                        splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
+                        self.detect_target[splitIDIndex][3] = spiltID#recover id
+                        print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
 
 
-        #split unreliable id
-        for ID in self.mergedIDs:
-            overlapID = self.mergedIDs[ID].intersection(set(self.unreliableID))#if merged IDS have unreliable ID
-            if len(overlapID) != 0:
-                for removeID in overlapID:#remove unreliable ID one by one
-                    if removeID == ID:#don't remove itself
-                        continue
-                    self.mergedIDs[ID].remove(removeID)#remove spilt id from set
-                    
-                    print(f"split unreliable ID {removeID} from {ID}, {self.mergedIDs[ID]}")
+    # #split unreliable id
+    # for ID in self.mergedIDs:
+    #     overlapID = self.mergedIDs[ID].intersection(set(self.unreliableID))#if merged IDS have unreliable ID
+    #     if len(overlapID) != 0:
+    #         for removeID in overlapID:#remove unreliable ID one by one
+    #             if removeID == ID:#don't remove itself
+    #                 continue
+    #             self.mergedIDs[ID].remove(removeID)#remove spilt id from set
+                
+    #             print(f"split unreliable ID {removeID} from {ID}, {self.mergedIDs[ID]}")
         # self.lastDetections = self.detect_target
     
 
