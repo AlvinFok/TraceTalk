@@ -284,7 +284,7 @@ class YoloDevice:
             self.countInArea_cal = np.array([[0, 1100],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1100, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1100] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1609, 578], [1980, 728], [1980, 1080]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.suspiciousArea = np.array([[1070, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])#This area use to handle occlusion when people get in square
-            self.mergeIDArea = np.array([[144, 1074],[511, 465],[1099, 485],[1643, 1080]])#only in this area id can merge
+            
             self.vertex = [[180, 873],[483, 266],[1124, 289],[1769, 870]]
         elif "入口人流Oct25" in video_url:
             self.countInArea_cal = np.array([[1719, 1513], [1749, 910], [2551, 913], [2606, 1327]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
@@ -884,8 +884,8 @@ class YoloDevice:
                         self.mergedIDs[j].remove(spiltID)#remove spilt id from set
                         splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
                         self.detect_target[splitIDIndex][3] = spiltID#recover id
-                        print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
-
+                        # print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
+        
 
     # #split unreliable id
     # for ID in self.mergedIDs:

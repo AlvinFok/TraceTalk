@@ -3,7 +3,7 @@
 
 ## Step 1. 下載檔案
 ```bash=
-git clone https://github.com/AlvinFok/People-Flow-System-of-the-Sixth-Japanese-Navy-Fuel-Plant TraceTalk
+git clone https://github.com/AlvinFok/TraceTalk.git
 
 cd TraceTalk
 git clone https://github.com/AlexeyAB/darknet.git

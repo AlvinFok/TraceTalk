@@ -331,6 +331,30 @@ def parse_args():
     
     return parser.parse_args()
 
+def getDets(dets:np.ndarray, frameID:int) -> np.ndarray:
+    indices = np.where(dets[:, 0] == frameID)
+    return dets[indices]
+
+def getNpData(filePath:str) -> np.ndarray:
+    data = open(filePath).readlines()
+    data = [i.split(',') for i in data]
+    data = np.array(data, dtype=float)
+    return data
+
+def getColor(id):
+    return ( (id * 5 + 20) %255, (id * 66 + 3) %255, (id * 50 - 1) %255)
+
+def drawTracks(image, tracks):
+    for i in tracks:
+        cx, cy, w, h = i[2]
+        id = i[3]
+        x1, y1 = int(cx - w/2), int(cy - h/2)
+        x2, y2 = int(x1 + w), int(y1 + h)
+        color = getColor(id)
+        cv2.rectangle(image, (x1, y1), (x2, y2), color, 3)
+        cv2.putText(image, str(id), (int(cx), int(cy) - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
+            
+    return image
 
 if __name__ == "__main__":
     pass
