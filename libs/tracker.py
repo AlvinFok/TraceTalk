@@ -48,13 +48,12 @@ class Tracker():
         self.totalIn = 0#count how many people enter the area totally
         self.currentIn = 0#how many people are in the area right now
         self.enable_people_counting = enable_people_counting
+        self.mergeDistanceThreshold = 70
+        self.splitDistanceThreshold = 100
         # self.draw_square = draw_square
         # self.countInArea_draw = np.array([[0, 1080],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1080, 590],[1425, 1007],[1525, 985],[1574, 814],[1920, 1080] ], np.int32)#The polygon of the area you want to count people inout
         self.in_area = np.array(in_area)#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
         self.out_area = np.array(out_area)
-        self.suspiciousArea = np.array([[1080, 582],[850, 588],[981, 927],[1350, 921]])#This area use to handle occlusion when people grt in square
-        self.suspiciousArea_L = np.array([[1080, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])
-        self.mergeIDArea = np.array([[144, 1074],[511, 465],[1099, 485],[1643, 1080]])#only in this area id can merge
         self.lastCentroids = dict()
         self.IDsInLastSuspiciousArea = set()
         self.suspiciousAreaIDTracker = dict()
@@ -147,7 +146,7 @@ class Tracker():
                 else:
                     self.count_obj[idx] += 1                
             
-            color = get_id_color(id)
+            color = getColor(id)
                 
             cv2.rectangle(image, (int(bb_left), int(bb_top)), 
                           (int(bb_left+bb_width), int(bb_top+bb_height)), color, 2)
@@ -229,7 +228,7 @@ class Tracker():
             id = track.track_id
             cx = int( (t + w / 2))
             cy = int( (l + h / 2))
-            color = get_id_color(id)
+            color = getColor(id)
             cv2.rectangle(image, (int(t), int(l)), (int(t + w), int(l + h)), color, 3)
             cv2.putText(image, str(id), (cx, cy - 7), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1.2, color=(0,255,0), thickness=2)
             
@@ -272,11 +271,9 @@ class Tracker():
     
     def people_counting(self):
         
-        self.__suspiciousAreaHandling()
-        self.__checkUnreliableIDs()
         if 0 < len(self.detect_target) <= 5:
-            self.__mergeID()
-            self.__splitID()
+            self.merge()
+            self.split()
         
             
         for det in self.detect_target:
@@ -365,239 +362,58 @@ class Tracker():
         
         self.lastDetections = self.detect_target                   
     
-    def __suspiciousAreaHandling(self):
-        '''
-        This function can break down into three parts.
-        occlusion handling
-        ID switching
-        object flash appearing
-        '''
-        IDsInCurrentSuspiciousArea = set()
-        IDsInThisFrame = set()
-        countedID = set()
-        detections = dict()
+
+    def merge(self):
+        #find disappear person
+        thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
+        lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
+        thisFrameIDS = set(thisFrameDetections.keys())
+        lastFrameIDS = set(lastFrameDetections.keys())
+        disappearIDS = lastFrameIDS.difference(thisFrameIDS)
         
-        self.IDSwitch["frame"] += 1
-        ############################
-        #occlusion handling
-        #assume that some people are occluded when 
-        #they are getting in the square but will
-        #appear in the suspicious area.
-        #So count +1 when someone suddenly appears
-        # n the suspicious area.
-        ############################
-        for det in self.detect_target:
-            x, y = det[4]#use this xy not center of bbox
-            id = det[3]
-            w, h = det[2][2:]
-            currentCentroid = Point((x, y))
-            # suspiciousAreaPolygon = Polygon(self.suspiciousArea)
-            suspiciousAreaPolygon = Polygon(self.suspiciousArea_L)
-            
-            detections[id] = det#save as dict for later
-            IDsInThisFrame.add(id)
-            #this id is new and spawn in the suspicious area. That I can say it has occlusion
-            if currentCentroid.within(suspiciousAreaPolygon):
-                IDsInCurrentSuspiciousArea.add(id)
-                if self.lastCentroids.get(id, None) is None:
-                    print("Area add:", id)
-                    self.totalIn += 1
-                    self.currentIn += 1
-                    countedID.add(id)
-                    center_x, center_y = det[4]
-                    self.lastCentroids[id] = {"center":(center_x, center_y),#update id's center
-                                              "wh":(w,h),
-                                          "countIn":True,
-                                          "countOut":False,
-                                          "outIn":False
-                                          }#set id not counted
+        for i in disappearIDS:
+            x1, y1 = lastFrameDetections[i][:2]
+            for j in lastFrameIDS:
+                if i == j:#same id
+                    continue
+                x2, y2 = lastFrameDetections[j][:2]
                 
-                    ############################
-                    #ID switch happening
-                    ############################
-                    #FPS depends
-                    if self.IDSwitch.get("frame", 20) < 10 and self.IDSwitch.get("amount", 0) > 0:
-                        self.totalIn -= 1
-                        self.currentIn -= 1
-                        self.IDSwitch["amount"] -= 1
-                        print(f"Id switch:{id}")
-                
-        ############################
-        #ID switch handling
-        #assume that 3 people are in the suspicious area but id switches happening and the id switch process is fast.
-        #example:ID 1 -> ID 4
-        #frame 1:
-        #ID 1,2,3
-        #frame 2:
-        #ID 2,3
-        #frame 3:
-        #2, 3
-        #frame 4:
-        #2, 3, 4
-        ############################
-        if len(self.IDsInLastSuspiciousArea) > len(IDsInCurrentSuspiciousArea):#the amount of people in the last frame is larger than this frame, may have id switching in the future
-            self.IDSwitch["frame"] = 0
-            self.IDSwitch["amount"] += len(self.IDsInLastSuspiciousArea) - len(IDsInCurrentSuspiciousArea)
-            
-            
+                distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
+                if distance < self.mergeDistanceThreshold:#disappear person is very close to this person
+                    if self.mergedIDs.get(j, None) is None:
+                        self.mergedIDs[j] = set([j,i])
+                    else:#already merged other ID
+                        self.mergedIDs[j].add(i)
+                    # print("ID merged:", self.mergedIDs)
+
+    def split(self):
+        #find new person
+        thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
+        lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
+        thisFrameIDS = set(thisFrameDetections.keys())
+        lastFrameIDS = set(lastFrameDetections.keys())
+        newIDS = thisFrameIDS.difference(lastFrameIDS)
         
-        ############################
-        #object flash appearing
-        #There has been some error detection of Yolo just flashing on the screen
-        #when there have a lot of people. So just keep tracking the object.
-        ############################
-        # suddenly appear id
-        self.unreliableID = []
-        #FPS depends
-        TRACK_FRAMES = 20  # const for amount of frames to track
-        COUNTED_THRESHOLD = 16
-        mode = "counted"  # ["counted", "continuous"]
-        for old_ID in list(self.suspiciousAreaIDTracker.keys()):
-            if self.suspiciousAreaIDTracker[old_ID]["tracked"] > TRACK_FRAMES:#checked
-                continue
-            
-            
-            if old_ID in IDsInThisFrame:#if id is in this frame
-                # add counter and keep cont status if already not continuous
-                old_ID_dict = self.suspiciousAreaIDTracker[old_ID]
-                self.suspiciousAreaIDTracker[old_ID] = {"tracked": old_ID_dict["tracked"]+1, "counted": old_ID_dict["counted"]+1, "continuous": True if old_ID_dict["continuous"] else False}
-                
-            else:
-                self.suspiciousAreaIDTracker[old_ID]["tracked"] += 1
-                self.suspiciousAreaIDTracker[old_ID]["continuous"] = False
-                
-            if self.suspiciousAreaIDTracker[old_ID]["tracked"] == TRACK_FRAMES:
-                if mode == "counted":
-                    if self.suspiciousAreaIDTracker[old_ID]["counted"] < COUNTED_THRESHOLD:  # id appeared not enough times
-                        print("Remove", old_ID, self.suspiciousAreaIDTracker[old_ID])
-                        for i in self.mergedIDs:#remove flash id from merged id
-                            if old_ID in self.mergedIDs[i]:
-                                self.mergedIDs[i].remove(old_ID)
-                                
-                        self.totalIn -= 1
-                        self.currentIn -= 1
-                        
-                else:  # "continuous" not using
-                    if self.suspiciousAreaIDTracker[old_ID]["continuous"] == False:  # id appeared continuously
-                        self.totalIn -= 1
-                        self.currentIn -= 1
-                        
-                # self.suspiciousAreaIDTracker.pop(old_ID)#remove id
-                
-                
-        # add new and counted ID to tracker
-        # new_IDs = IDsInCurrentSuspiciousArea.difference(self.IDsInLastSuspiciousArea)
-        for new_ID in countedID:
-            if self.suspiciousAreaIDTracker.get(new_ID, None) is None :#new id in this frame and already +1 and self.lastCentroids[new_ID]["counted"]
-                self.suspiciousAreaIDTracker[new_ID] = {"tracked": 1, "counted": 1, "continuous": True}
-                
-        self.IDsInLastSuspiciousArea = IDsInCurrentSuspiciousArea  # update id
+        thisFrameIDsList = [det[3] for det in self.detect_target]
+       
+        for i in newIDS:
+            x1, y1 = thisFrameDetections[i][:2]
+            for j in thisFrameIDS:
+                if i == j:#same id
+                    continue
+                x2, y2 = thisFrameDetections[j][:2]
+                distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
+                if distance < self.splitDistanceThreshold:#new person is close to this person
+                    if self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1:#new id split
+                        spiltID = list(self.mergedIDs[j])[1]
+                        if spiltID == j:#same id
+                            continue
+                        self.mergedIDs[j].remove(spiltID)#remove spilt id from set
+                        splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
+                        self.detect_target[splitIDIndex][3] = spiltID#recover id
+                        # print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
+     
 
-    def __mergeID(self):
-        if len(self.detect_target) < len(self.lastDetections):#number of people in this frame is less than last frame. May be two person's merged
-            #find disappear person
-            thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
-            lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
-            thisFrameIDS = set(thisFrameDetections.keys())
-            lastFrameIDS = set(lastFrameDetections.keys())
-            disappearIDS = lastFrameIDS.difference(thisFrameIDS)
-            mergeDistanceThreshold = 70
-            mergeArea = Polygon(self.mergeIDArea)
-            for i in disappearIDS:
-                x1, y1 = lastFrameDetections[i][:2]
-                id1 = Point((x1, y1))
-                for j in lastFrameIDS:
-                    if i == j:#same id
-                        continue
-                    x2, y2 = lastFrameDetections[j][:2]
-                    id2 = Point((x2, y2))
-                    
-                    distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
-                    pointInArea = id1.within(mergeArea) and id2.within(mergeArea)
-                    if distance < mergeDistanceThreshold and pointInArea:#disappear person is very close to this person and in merge id area. ID merged
-                        if self.mergedIDs.get(j, None) is None:
-                            self.mergedIDs[j] = set([j,i])
-                        else:#already merged other ID
-                            self.mergedIDs[j].add(i)
-                        # print("ID merged:", self.mergedIDs)
-
-    def __splitID(self):
-        if len(self.detect_target) > len(self.lastDetections) and len(self.lastDetections) != 0:#number of people in this frame is more than last frame. May be two person's merged
-            #find new person
-            thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
-            lastFrameDetections = {det[3]:det[2] for det in self.lastDetections}#{id:center}
-            thisFrameIDS = set(thisFrameDetections.keys())
-            lastFrameIDS = set(lastFrameDetections.keys())
-            newIDS = thisFrameIDS.difference(lastFrameIDS)
-            mergeDistanceThreshold = 100
-            
-            thisFrameIDsList = [det[3] for det in self.detect_target]
-            # print("disappear id", disappearIDS)
-            for i in newIDS:
-                x1, y1 = thisFrameDetections[i][:2]
-                for j in thisFrameIDS:
-                    if i == j:#same id
-                        continue
-                    x2, y2 = thisFrameDetections[j][:2]
-                    distance = ( (x1-x2)**2 + (y1-y2)**2 )**0.5
-                    
-                    # spiltID = list(self.mergedIDs[j])[1]
-    
-                    # canSpilt = distance < mergeDistanceThreshold and self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1 and spiltID != j
-                    if distance < mergeDistanceThreshold:#disappear person is very close to this person. ID merged
-                        if self.mergedIDs.get(j, None) is not None and len(self.mergedIDs[j]) > 1:#new id split from here
-                            spiltID = list(self.mergedIDs[j])[1]
-                            if spiltID == j:#same id
-                                continue
-                    # if canSpilt:
-                            self.mergedIDs[j].remove(spiltID)#remove spilt id from set
-                            splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
-                            self.detect_target[splitIDIndex][3] = spiltID#update this frame new id to split id
-                            print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
-
-
-        #split flash id
-        for ID in self.mergedIDs:
-            overlapID = self.mergedIDs[ID].intersection(set(self.unreliableID))#if merged IDS have flash ID
-            if len(overlapID) != 0:
-                for removeID in overlapID:#remove flash ID ine by one
-                    if removeID == ID:#don't remove itself
-                        continue
-                    self.mergedIDs[ID].remove(removeID)#remove spilt id from set
-                    
-                    print(f"split flash ID {removeID} from {ID}, {self.mergedIDs[ID]}")
-        # self.lastDetections = self.detect_target
-    
-    def __checkUnreliableIDs(self):
-        '''
-        input yolo detections
-        check unreliableIDs with few frames
-        '''
-        self.unreliableID = list()
-        #get IDS in this frame
-        IDSThisFrame = [det[3] for det in self.detect_target]
-        newIDs = set(IDSThisFrame).difference(set(self.AllIDtracker.keys()))
-        
-        TRACK_FRAMES = 15  # const for amount of frames to track
-        COUNTED_THRESHOLD = 6
-        for ID in list(self.AllIDtracker):#use list to copy the dict because will remove element in loop
-            if ID in IDSThisFrame:#ID in this frame
-                # if self.AllIDtracker.get(ID, None) is None :#new ID
-                #     self.AllIDtracker[ID] = {"tracked": 1, "counted": 1, "continuous": True}
-                self.AllIDtracker[ID]["tracked"] += 1
-            self.AllIDtracker[ID]["counted"] += 1
-            
-            if self.AllIDtracker[ID]["counted"] >= TRACK_FRAMES:
-                if self.AllIDtracker[ID]["tracked"] < COUNTED_THRESHOLD:#flash id
-                    self.unreliableID.append(ID)
-                    
-                del self.AllIDtracker[ID]#del ID
-
-
-
-        for new_id in newIDs:#add new id
-            self.AllIDtracker[new_id] = {"tracked": 1, "counted": 1, "continuous": True}#continuous not using
-    
     def socialDistance(self, image):
         closePairs = []
 

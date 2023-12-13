@@ -5,6 +5,7 @@ yolov4-tiny.conv.29
 videos/
 videoTest*/
 evaluation*.json
+record/
 #yolo training data
 labelData/
 #lib

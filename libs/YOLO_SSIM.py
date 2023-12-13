@@ -472,7 +472,7 @@ class YoloDevice():
         darknet.copy_image_from_bytes(darknet_image, frame_rgb.tobytes())
         
         detections = darknet.detect_image(self.network, self.class_names, darknet_image, thresh=self.thresh)
-        print("hi", detections)
+        
         # Using assemble model
         if self.ensemble:
             detections2 = darknet.detect_image(self.network2, self.class_names2, darknet_image, thresh=self.thresh)

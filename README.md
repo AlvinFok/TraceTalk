@@ -43,7 +43,7 @@ make
 
 ```bash=
 pip install -r requirements.txt
-python3 test_BYTE_YOLOX.py --video 0325__12__12.mp4 -f ByteTrack/exps/example/mot/yolox_x_mix_det.py
+python3 test_BYTE_YOLOX.py --video 0325__12__1.mp4 -f ByteTrack/exps/example/mot/yolox_x_mix_det.py
  -c ByteTrack/pretrained/bytetrack_x_mot17.pth.tar --fp16 --fuse
 ```
 
@@ -80,7 +80,7 @@ ByteTrack/yolox/tracker/matching.py
 ### Tool usage guide
 ```tools/track2txt.py```
 ```bash
-python3 tools/track2txt.py -f ByteTrack/exps/example/mot/yolox_x_mix_det.py -c ByteTrack/pretrained/bytetrack_x_mot17.pth.tar --fp16 --fuse --path 0325__12__12.mp4 --savePath .
+python3 tools/track2txt.py -f ByteTrack/exps/example/mot/yolox_x_mix_det.py -c ByteTrack/pretrained/bytetrack_x_mot17.pth.tar --fp16 --fuse --path video --savePath .
 ```
 ```tools/track2txtParllal.py```
 ```bash

@@ -2,6 +2,17 @@ from libs.YOLO_SSIM import YoloDevice
 import libs.DAN as DAN
 # import LineNotify
 import json
+import numpy as np
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 if __name__ == '__main__': 
@@ -16,13 +27,12 @@ if __name__ == '__main__':
 
     def on_data(save_path_img: str, group: str, alias: str, detect: str):
         data = {
-            "detections":yolo1.detect_target,
+            "detections":detect,
         }
-        data = json.dumps(data)
-        print(data)
+        data = json.dumps(data, cls=NpEncoder)
         print(DAN.push('SFDB-I', data))
             
-    video = "./0325__12__12.mp4"
+    video = "./0325__12__1.mp4"
     alias = "test"
     yolo1 = YoloDevice(
                 # darknet file, preset is coco.data(80 classes)
