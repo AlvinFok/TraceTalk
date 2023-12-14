@@ -279,7 +279,7 @@ class YoloDevice:
             self.suspiciousArea = None#This area use to handle occlusion when people get in square
             
         
-        elif "0325__12__12"  in video_url:
+        elif "0325__12__1"  in video_url:
             self.countInArea_cal = np.array([[0, 1100],[0, 100],[557, 100],[983, 260], [993, 359],[1159, 493],[1137, 586],[1100, 590],[1425, 1007],[1525, 985],[1574, 814],[1930, 1100] ])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.countOutArea = np.array([[0, 1080],[0, 0],[877, 0],[1019, 257],[1007, 360],[1177, 501],[1165, 595],[1512, 962],[1609, 578], [1980, 728], [1980, 1080]])#Make the area of bottom lower because some people walk in from there. If not making lower, system will count those person
             self.suspiciousArea = np.array([[1070, 589],[846, 590],[890, 684],[1024, 732],[1129, 905],[1350, 927]])#This area use to handle occlusion when people get in square

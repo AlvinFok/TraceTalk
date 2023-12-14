@@ -364,7 +364,6 @@ class Tracker():
         
         self.lastDetections = self.detect_target                   
     
-
     def merge(self):
         #find disappear person
         thisFrameDetections = {det[3]:det[2] for det in self.detect_target}#{id:center}
@@ -414,7 +413,6 @@ class Tracker():
                         splitIDIndex = thisFrameIDsList.index(i)#find the new id's index of this frame
                         self.detect_target[splitIDIndex][3] = spiltID#recover id
                         # print(f"split ID {spiltID} from {j}, {self.mergedIDs[j]}")
-     
 
     def socialDistance(self, image):
         closePairs = []

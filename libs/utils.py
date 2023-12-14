@@ -23,7 +23,7 @@ def detect_filter(detections, target_classes, vertex, only_detect_center_bbox=Fa
     """
     results = []
     
-    for label, confidence, bbox in detections:        
+    for label, confidence, bbox in detections:
         left, top, right, bottom = bbox2points(bbox)
         
         # Filter the target class
