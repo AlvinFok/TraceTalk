@@ -478,7 +478,7 @@ class YoloDevice:
                     detections.append(['person', score, [cx, cy, w, h], id, [cx, cy + h / 2]])
                 
                 self.detect_target = detections
-                self.detect_target = detect_filter(detections, self.target_classes, self.vertex, True)
+                # self.detect_target = detect_filter(detections, self.target_classes, self.vertex, True)
                 
             else:#use yolo detections
                 outputs, img_info = self.predictor.inference(self.frame, self.timer)
@@ -495,8 +495,10 @@ class YoloDevice:
                         detections.append([class_pred, obj_conf, (cx, cy, w, h)])
             
                 
+                self.detect_target = detections
+                
                 # filter the scope and target class   
-                self.detect_target = detect_filter(detections, self.target_classes, self.vertex, True)
+                # self.detect_target = detect_filter(detections, self.target_classes, self.vertex, True)
                 
                 
                 self.detect_target = self.object_tracker_BYTE()

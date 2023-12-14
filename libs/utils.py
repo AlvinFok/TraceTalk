@@ -23,7 +23,7 @@ def detect_filter(detections, target_classes, vertex, only_detect_center_bbox=Fa
     """
     results = []
     
-    for label, confidence, bbox in detections:
+    for label, confidence, bbox, *_ in detections:
         left, top, right, bottom = bbox2points(bbox)
         
         # Filter the target class
@@ -70,7 +70,7 @@ def draw_boxes(detections, image, colors, target_classes):
       Draw the detections results bounding box to image.
     """    
     
-    for label, confidence, bbox, _ in detections:        
+    for label, confidence, bbox in detections:        
         left, top, right, bottom = bbox2points(bbox)        
         
         cv2.rectangle(image, (left, top), (right, bottom), colors[label], 1)
