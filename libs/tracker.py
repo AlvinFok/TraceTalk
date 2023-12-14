@@ -10,6 +10,8 @@ from loguru import logger
 
 
 sys.path.insert(1, 'multi-object-tracker')
+sys.path.insert(1, 'ByteTrack')
+
 from motpy import Detection, MultiObjectTracker
 from ByteTrack.yolox.tracker.byte_tracker import BYTETracker
 from motrackers import SORT, CentroidKF_Tracker, CentroidTracker, IOUTracker
